@@ -17,7 +17,7 @@ import os
 
 class Gradient:
     
-    def __init__(self,grad_path = None, val_path = None, string = None):
+    def __init__(self,grad_path = None, val_path = None, gid = None):
         
         if grad_path is not None: 
             self.garray = np.load(grad_path)
@@ -29,8 +29,17 @@ class Gradient:
         else:
             self.array = None
             
-        self.string = string 
+        self.gid = gid 
+    
+    def set_gid(self,gid):
+        self.gid = gid 
         
+        
+    def info(self):
+        print(f'ID {self.string}')
+        print(f'{self.nvert} vertices, {self.ngrad} gradients')
+        return 
+    
     def compute_FC_from_fMRI(self, lh_fmri_path, rh_fmri_path, threshold = 0.03, chunk_size = 1000, symmetric = True, size = 20484, smoothing_mat = None, cos_sim= True, return_mat = True, verbose = True ):
         
         if type(lh_fmri_path) is str:
@@ -111,6 +120,13 @@ class Gradient:
         fcmat, zeromask = self.compute_FC_from_fMRI(lh_fmri_path, rh_fmri_path, threshold, chunk_size, symmetric, size, smoothing_mat, cos_sim, True, verbose)
         
         self.compute_grads_from_FC(self, fcmat, zeromask, num_comp, savepath)
+        
+    
+    def evaluate(self, function, **kwargs):
+ 
+        return function(self.garray, **kwargs)
+        
+        
         
         
         

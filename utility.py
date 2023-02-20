@@ -16,7 +16,7 @@ import os
 from scipy import sparse
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import KMeans
-import readwrite as rw
+import io as rw
 import icc 
 import glob
 
@@ -1289,7 +1289,7 @@ def cmap3d_bary(grads):
     
     
 def test_color_scheme(grads,age,op,rot=None,rotcol=None,a=None,b=None,c=None):
-    from readwrite import plot_custom_colormap
+    from io import plot_custom_colormap
     plot_custom_colormap(grads,age=age,op=op,rot=rot,a=a,b=b,c=c)
     embed_plot_custom_colors(grads[:10242],ai=[0,1],op=op,age=age,rot=rot,rotcol=rotcol,a=a,b=b,c=c)
     embed_plot_custom_colors(grads[:10242],ai=[0,2],op=op,age=age,rot=rot,rotcol=rotcol,a=a,b=b,c=c)
@@ -1462,10 +1462,10 @@ def gauss_av_weight(x,mu,sig):
     weight=np.exp(-1*((x-mu)**2)/2/sig**2)
     return weight
 
-import readwrite as rw
+#import io as rw
 
-bcpmask=rw.generate_mask_from_parc_bcp('/Users/patricktaylor/Documents/lifespan_analysis/misc/Atlas_12Months_lh.desikan.downsampled.L5.func.gii','/Users/patricktaylor/Documents/lifespan_analysis/misc/Atlas_12Months_rh.desikan.downsampled.L5.func.gii')
-
+#bcpmask=rw.generate_mask_from_parc_bcp('/Users/patricktaylor/Documents/lifespan_analysis/misc/Atlas_12Months_lh.desikan.downsampled.L5.func.gii','/Users/patricktaylor/Documents/lifespan_analysis/misc/Atlas_12Months_rh.desikan.downsampled.L5.func.gii')
+bcpmask =0 
 
 def agglo_by_hem(vecs,nclust,mask=bcpmask):
     parc=np.zeros(len(vecs))
@@ -2066,7 +2066,7 @@ def cb(g,c=np.array([1,0,0]),a=np.array([0.7,0,0.95]),b=np.array([0,0,0.34])):
         
     return c
 
-import decomposition_tools as dct 
+import decomp as dct 
 
 def cluster_by_temporal_change(grads,nclust=10,save='/Users/patricktaylor/Documents/lifespan_analysis/scratch/'+'%s_tempclust.vtk',sc=None,si=None):
     dif = grads[:,:,:]#-np.mean(grads[:,:,:],axis=0)

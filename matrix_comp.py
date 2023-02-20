@@ -7,7 +7,7 @@ Created on Thu May 28 18:27:26 2020
 """
 from scipy import sparse
 import numpy as np 
-import utility_functions as ut
+import utility as ut
 from sklearn.metrics import pairwise_distances_chunked
 import time
 from scipy.sparse import csgraph
@@ -731,7 +731,7 @@ def normalize_evec(vecs):
     
     return nvecs
 
-from decomposition_tools import LapDecomp
+from decomp import LapDecomp
 
 def get_multilayer_flexibility(ts,windowlength,num=7,gamma=15):
     
@@ -813,7 +813,7 @@ def get_streamline_incidence(start_dists, start_indices, end_dists, end_indices,
 
     return (start_inc_mat.tocsr(), end_inc_mat.tocsr())
 
-import utility_functions as uts
+import utility as uts
 
 def get_incidence_matrix(ec,sc,threshold=2,return_indcidence=True):
     inds,dists=uts.neighbors(sc,ec,1)

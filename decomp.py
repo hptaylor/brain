@@ -575,7 +575,7 @@ def rotation_from_angle_and_plane(angle, vector1, vector2, abs_tolerance=1e-10):
 
 from scipy.spatial.distance import cdist
 
-import utility_functions as uts
+import utility as uts
 
 from scipy.spatial.distance import euclidean as euc
 
