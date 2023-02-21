@@ -6,7 +6,7 @@ Created on Fri Feb 17 15:53:23 2023
 @author: patricktaylor
 """
 import numpy as np 
-import io as io 
+import reading_writing as rw 
 import matrix_comp as mtx 
 
 import brainspace as bs 
@@ -14,6 +14,8 @@ from scipy import sparse
 import utility as uts 
 import decomp as dcp
 import os 
+import plotting as pltg 
+import scipy.stats as ss 
 
 class Gradient:
     
@@ -23,9 +25,9 @@ class Gradient:
 
         Parameters
         ----------
-        grad_path : str, optional
+        grad_path : str, optrwnal
             if supplied, used to load the gradient array. The default is None.
-        val_path : str, optional
+        val_path : str, optrwnal
             path to eigenvalue array. The default is None.
         gid : str, int, optional
             unique identifier for gradient. The default is None.
@@ -37,8 +39,8 @@ class Gradient:
         """
         if grad_path is not None: 
             self.garray = np.load(grad_path)
-            self.nvert = self.garray.shape[0]
-            self.ngrad = self.garray.shape[1]
+            #self.nvert = self.garray.shape[0]
+            #self.ngrad = self.garray.shape[1]
         if val_path is not None: 
             self.varray = np.load(val_path)
             
@@ -47,9 +49,34 @@ class Gradient:
             
         self.gid = gid 
     
+    
     def set_gid(self,gid):
         self.gid = gid 
+    
+    def set_ngrad(self, ngrad):
         
+        self.garray = self.garray[:,:ngrad]
+        
+        
+        
+    @property
+    def nvert(self):
+        return self.garray.shape[0]
+    
+    @property
+    def ngrad(self):
+        return self.garray.shape[1]
+    
+    @property
+    def grange(self):
+        gr = [np.max(self.garray[:,i])-np.min(self.garray[:,i]) for i in range (self.ngrad)]
+        return np.array(gr)
+    
+    @property
+    def gvar(self):
+        gv = [np.var(self.garray[:,i]) for i in range (self.ngrad)]
+        return np.array(gv)
+
         
     def info(self):
         print(f'ID {self.string}')
@@ -114,7 +141,7 @@ class Gradient:
         if type(lh_fmri_path) is str:
             
             #load fMRI timeseries as np array from .gii
-            fmri = io.read_functional_timeseries(
+            fmri = rw.read_functional_timeseries(
                         lh_fmri_path, rh_fmri_path, v2s = False)
             
             #mask  all vertices with no fMRI
@@ -143,7 +170,7 @@ class Gradient:
             
             for i in range(len(lh_fmri_path)):
                 
-                fmri = io.read_functional_timeseries(lh_fmri_path[i], 
+                fmri = rw.read_functional_timeseries(lh_fmri_path[i], 
                                                      rh_fmri_path[i], 
                                                      v2s = False)
                 
@@ -314,6 +341,36 @@ class Gradient:
         
         self.neighbor_indices = inds
         self.neighbor_distances = dists 
+    
+    def compute_spearmanr(self, grad):
+        
+        mat = ss.spearmanr(self.garray, grad.garray)
+        c = mat.correlation[:self.ngrad, self.ngrad : self.ngrad*2]
+        p = mat.pvalue[:self.ngrad, self.ngrad : self.ngrad*2]
+       
+        return  c, p
+        
+            
+            
+    def hist(self, gradinds):
+        pltg.embed_plot_all_vertices_histogram(self.garray, gradinds, self.gid)
+        
         
     
         
+    def surface_plot(self, gradind = None):
+        
+        if gradind is None:
+            gradind = np.arange(min(self.ngrad,5))
+            
+        if len(gradind) < 2:
+            pltg.splot(self.garray[:,gradind],title = f'{self.gid} gradient {gradind}')
+            #rw.plot_surf(self.garray[:,gradind], lh, rh, title = self.gid)
+            
+        else:
+            for i in gradind:
+                pltg.splot(self.garray[:,i],title = f'{self.gid} gradient {gradind[i]}')
+                #rw.plot_surf(self.garray[:,i], lh, rh, title = self.gid )
+        
+    
+    

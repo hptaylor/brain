@@ -6,7 +6,7 @@ Created on Sun Feb 19 16:52:46 2023
 @author: patricktaylor
 """
 
-import io
+import reading_writing as rw 
 import utility as uts 
 import numpy as np 
 import Gradient 
@@ -26,16 +26,18 @@ class GradientSet:
             if vals are available in same directory, they will also be loaded. 
         index : any, optional 
             user-supplied additional index on gradient set 
-        get_ids : TYPE, optional
-            DESCRIPTION. The default is True.
-        get_vals : TYPE, optional
-            DESCRIPTION. The default is True.
-        dtable : TYPE, optional
-            DESCRIPTION. The default is None.
+        get_ids : boolean, optional
+            if true, scrape IDs from gradient filenames. The default is True.
+        get_vals : boolean, optional
+            if true, assume existence/ naming of eigenvalues and load them. 
+            The default is True.
+        dtable : pandas.DataFrame, optional
+            df already containing Gradient objects. if supplied, this will 
+            be used to instantiate GradientSet directly. The default is None.
 
         Returns
         -------
-        None.
+        None. populates dtable attribute with Gradient objects
 
         """
         
@@ -86,14 +88,17 @@ class GradientSet:
         else:
             self.dtable = dtable 
             
-            
+    @property
     def length(self):
         #number of gradients in set
         return self.dtable.shape[0]
     
-    def g(self, ind):
-        #return grad array at index ind
-        return self.dtable['grads'][ind].garray
+    def g(self, ind, return_obj):
+        #return grad obj or array at index ind
+        if return_obj:
+            return self.dtable['grads'][ind]
+        else:
+            return self.dtable['grads'][ind].garray
     
     def glist(self):
         #return list of grad arrays
@@ -184,8 +189,7 @@ class GradientSet:
             
             if n in set(dataframe[foreign_key]):
                 
-                self.dtable.loc[i, native_fieldname] = dataframe[dataframe[foreign_key] == n]
-                [foreign_fieldname].to_numpy()[0]
+                self.dtable.loc[i, native_fieldname] = dataframe[dataframe[foreign_key] == n][foreign_fieldname].to_numpy()[0]
             
     
     def compute_pca_template(self, n_components = 3, **kwargs):
@@ -257,9 +261,10 @@ class GradientSet:
             
             g.garray = glist[i]
             
+    def surface_plot(self, gradind, plotind = None):
+        self.g(gradind,True).surface_plot(plotind)
     
-        
-        
+    
             
             
             

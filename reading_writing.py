@@ -12,109 +12,25 @@ import meshio
 from tvtk.api import tvtk, write_data
 import nibabel as nib
 import surfplot as sp
-#import matplotlib.pyplot as plt
-
-#sc=np.load('/Users/patricktaylor/Documents/HCP_func_gradient/sc.npy')
-#si=np.load('/Users/patricktaylor/Documents/HCP_func_gradient/si.npy')
-#mask=np.load('/Users/patricktaylor/Documents/HCP_func_gradient/mask.npy')
-
-grads=np.load('/Users/patricktaylor/Documents/lifespan_analysis/individual/t3p_s2_e07/grads_gamm_log.npy')
-
-grads_zscore=np.load('/Users/patricktaylor/Documents/lifespan_analysis/individual/t3p_s2_e07/grads_gamm_log_zscore.npy')
-
-#grads_aligned_masked=np.load('/Users/patricktaylor/Documents/lifespan_analysis/avg_FC_harms/grads10p_fmask/grads_masked_aligned.npy')
-#grads_aligned_unmasked=np.load('/Users/patricktaylor/Documents/lifespan_analysis/avg_FC_harms/grads10p_fmask/grads_unmasked_aligned.npy')
-#ages=np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/timepointlist.npy')
-#netmasks=np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/networkmasks.npy')
-#netnames=np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/nicenetnames.npy')
-
-#grads=np.load('/Users/patricktaylor/Documents/lifespan_analysis/individual/10p_fwhm3/grads_GAMM.npy')
-
-#netmasks=np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/mynetworkmasks_ext.npy')
-
-#netnames=np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/mynetnames_ext.npy')
-
-#netparc=np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/parc_agglo_hstack.npy')
-
-#grads_zscore=np.load('/Users/patricktaylor/Documents/lifespan_analysis/results/grads_zscore_GAMM_3M.npy')[:,:,:3]
-#trans=np.load('/Users/patricktaylor/Documents/lifespan_analysis/results/transmodality/transmodality_GAMM_400.npy')
-
-#grads_zscore=np.load('/Users/patricktaylor/Documents/lifespan_analysis/results/aroma/grads_GAMM_3M_zscore.npy')
-
-#grads_gamm=np.load('/Users/patricktaylor/Documents/lifespan_analysis/results/aroma/grads_GAMM_3M.npy')
-
-scrpath='/Users/patricktaylor/Documents/lifespan_analysis/scratch/'
-
-axisnames=['SA','VS','MR']
-
-def get_hcp_sc_si(mask=True):
-    sc=np.load('/Users/patricktaylor/Documents/HCP_func_gradient/sc.npy')
-    si=np.load('/Users/patricktaylor/Documents/HCP_func_gradient/si.npy')
-    if mask:
-        mask=np.load('/Users/patricktaylor/Documents/HCP_func_gradient/mask.npy')
-        return sc,si,mask
-    else:
-        return sc,si 
-    
+import utility as uts 
 import brainspace as bs 
-lh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii')
-rh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii')
 
+#define globals 
+scrpath='/Users/patricktaylor/Documents/lifespan_analysis/scratch/'
+axisnames=['SA','VS','MR']
+lhp = '/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii' 
+rhp = '/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii' 
+        
 
-months=np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/monthlist.npy')
-
-lhlist=[]
-rhlist=[]
-
-#for m in months:
-#    d='/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/'
-#    l=bs.mesh.mesh_io.read_surface(d+f'Atlas_{int(m)}Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii')
-#    r=bs.mesh.mesh_io.read_surface(d+f'Atlas_{int(m)}Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii')
-#    lhlist.append(l)
-#    rhlist.append(r)
-
-#hcpdmask=np.load('/Users/patricktaylor/Documents/lifespan_analysis/masks/HCPD_mask.npy')
-#hcpyamask=np.load('/Users/patricktaylor/Documents/lifespan_analysis/masks/HCPYA_mask.npy')
-#hcpamask=np.load('/Users/patricktaylor/Documents/lifespan_analysis/masks/HCPA_mask.npy')
-
-
-def plot_surf(data,lh,rh=None,age=None,white=False,size=(800,200),title=None,crange=None,cmap='turbo',save=None,show=True,monthsurf=None,right=False,cbar=True,interactive=False):
-    
-    if len(data)==18463:
-        data=uts.unmask_medial_wall(data,bcpmask)
-    if monthsurf is not None:
-        lh=bs.mesh.mesh_io.read_surface(f'/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_{(monthsurf)}Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii')
-        if rh is not None:
-            rh=bs.mesh.mesh_io.read_surface(f'/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_{(monthsurf)}Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii')
-    if age is not None:
-        if rh is None:
-            lh=load_surface_atlas(age,white=white)[0]
-        else:
-            lh,rh=load_surface_atlas(age,white=white)
-    if rh is not None:
-        if not right:
-            p = sp.Plot(lh,rh,size=size,zoom=1.2, layout='row')
-            p.add_layer(data,color_range=crange,cmap=cmap,zero_transparent=False,cbar_label=title,cbar=cbar)
-        if right:
-            p = sp.Plot(rh,size=size,zoom=1.2, layout='row',cmap=cmap)
-            p.add_layer(data[int(data.shape[0]/2):],color_range=crange,cmap='jet',zero_transparent=False,cbar_label=title,cbar=cbar)
-    else:
-        if size==(800,200):
-            size=(400,200)
-            
-        p = sp.Plot(lh,size=size,zoom=1.2, layout='row')
-        if len(data)==20484:
-            p.add_layer(data[:int(data.shape[0]/2)],color_range=crange,cmap=cmap,zero_transparent=False,cbar_label=title,cbar=cbar)
-        else:
-            p.add_layer(data,color_range=crange,cmap=cmap,zero_transparent=False,cbar_label=title,cbar=cbar)
-    #p.show(interactive=interactive)
-    fig = p.build()
-    #fig.title(title)
-    if show:
-        fig.show()
-    if save is not None:
-        fig.savefig(save)
+def load_surf_objs():
+    global lh 
+    global rh 
+    lh=bs.mesh.mesh_io.read_surface(lhp)
+    rh=bs.mesh.mesh_io.read_surface(rhp)
     return 
+
+
+
 
 def plot_custom_colormap(vecs,col=None, age=None,save=None,return_colors=False,op=1,rot=None,rotcol=None,a=None,b=None,c=None,unmask=False):
     from utility_functions import embed_colormap_3D
@@ -826,7 +742,7 @@ def get_vertex_color(f2p, p2t, f2t, v2f, v2p, v2t): #f2p: frontal to parietal di
     
     return red,green,blue
 
-import utility_functions as uts
+#import utility_functions as uts
 
 def save_evec_to_vtk(filename,agerange,atlasmonth):
     valsvecs=np.load(filename,allow_pickle=True)
