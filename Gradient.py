@@ -5,22 +5,23 @@ Created on Fri Feb 17 15:53:23 2023
 
 @author: patricktaylor
 """
+import os 
 import numpy as np 
+from scipy import sparse 
+import scipy.stats as ss 
+import brainspace as bs 
+
 import reading_writing as rw 
 import matrix_comp as mtx 
-
-import brainspace as bs 
-from scipy import sparse 
 import utility as uts 
 import decomp as dcp
-import os 
 import plotting as pltg 
-import scipy.stats as ss 
+
 
 class Gradient:
     
     
-    def __init__(self,grad_path = None, val_path = None, gid = None):
+    def __init__(self,garray = None, grad_path = None, val_path = None, gid = None):
         """
 
         Parameters
@@ -37,6 +38,8 @@ class Gradient:
         None.
 
         """
+        if garray is not None: 
+            self.garray = garray 
         if grad_path is not None: 
             self.garray = np.load(grad_path)
             #self.nvert = self.garray.shape[0]
@@ -69,7 +72,9 @@ class Gradient:
     
     @property
     def grange(self):
-        gr = [np.max(self.garray[:,i])-np.min(self.garray[:,i]) for i in range (self.ngrad)]
+        gr = []
+        for i in range(self.ngrad):
+            gr.append(np.max(self.garray[:,i])-np.min(self.garray[:,i]))
         return np.array(gr)
     
     @property
@@ -83,9 +88,9 @@ class Gradient:
         print(f'{self.nvert} vertices, {self.ngrad} gradients')
         return 
     
-    def compute_FC_from_fMRI(self, lh_fmri_path, rh_fmri_path, threshold = 0.03, 
-                             chunk_size = 1000, symmetric = True, size = 20484, 
-                             smoothing_mat = None, cos_sim= True, return_mat = True, 
+    def compute_FC_from_fMRI(self, lh_fmri_path, rh_fmri_path, threshold =0.03, 
+                             chunk_size = 1000, symmetric = True, size =20484, 
+                             smoothing_mat =None, cos_sim=True,return_mat=True, 
                              verbose = True ):
         """
     
@@ -162,18 +167,14 @@ class Gradient:
             fcmat = uts.unmask_connectivity_matrix(fcmat, zeromask)
             
         else: #we have multiple acquisitions 
-            
             zeromask = np.zeros(size)
             #initialize empty sparse mat for average
             fcmat = sparse.csr_matrix((size, size))
             n = 0 
-            
             for i in range(len(lh_fmri_path)):
-                
                 fmri = rw.read_functional_timeseries(lh_fmri_path[i], 
                                                      rh_fmri_path[i], 
                                                      v2s = False)
-                
                 zm = uts.mask_from_timeseries_zero(fmri)
                 zeromask+= zm 
                 fmri = uts.mask_medial_wall_vecs(fmri, zm)
@@ -191,19 +192,15 @@ class Gradient:
                 #add this acquisition to running sum across acquisitions
                 fcmat += mat 
                 n += 1
-                
             if verbose: print(f'''average FC mat computed 
                               from {n} acquisitions with 
                               threshold = {threshold}''')
             
             zeromask[zeromask>1] = 1
-        
         #load surface-based smoothing matrix
         if smoothing_mat is not None:
-            
             sm = sparse.load_npz(smoothing_mat)
             sm = uts.mask_connectivity_matrix(sm, zeromask)
-        
         fcmat = uts.mask_connectivity_matrix(fcmat, zeromask)
         
         fcmat.data=np.nan_to_num(fcmat.data,copy=False,nan=0)
@@ -364,13 +361,56 @@ class Gradient:
             gradind = np.arange(min(self.ngrad,5))
             
         if len(gradind) < 2:
-            pltg.splot(self.garray[:,gradind],title = f'{self.gid} gradient {gradind}')
+            pltg.splot(self.garray[:,gradind],
+                       title = f'{self.gid} gradient {gradind}')
             #rw.plot_surf(self.garray[:,gradind], lh, rh, title = self.gid)
             
         else:
             for i in gradind:
-                pltg.splot(self.garray[:,i],title = f'{self.gid} gradient {gradind[i]}')
+                pltg.splot(self.garray[:,i],
+                           title = f'{self.gid} gradient {gradind[i]}')
                 #rw.plot_surf(self.garray[:,i], lh, rh, title = self.gid )
+                
+    def normalize_zero_to_one(self):
+        normgrads=np.zeros(self.garray.shape)
+        for i in range (3):
+            normgrads[:,i]=((self.garray[:,i]-np.min(self.garray[:,i]))
+                            /(np.max(self.garray[:,i])-np.min(self.garray[:,i])))
+        return normgrads
+    
+    
+    def get_3d_cmap(self, a = np.array([0,1.4,0.1]),b = np.array([-0.2,-0.2,0]),
+                    c = np.array([1.2,0.7,0])):
+        normgrads = self.normalize_zero_to_one()
+        normgrads = normgrads[:,:3]
+        colors = np.zeros((self.garray.shape[0],3))
         
+        a = np.repeat(a.reshape((1,3)),self.garray.shape[0],axis = 0)
+        b = np.repeat(b.reshape((1,3)),self.garray.shape[0],axis = 0)
+        c = np.repeat(c.reshape((1,3)),self.garray.shape[0],axis = 0)
+        
+        abc = np.linalg.norm(np.cross(c - a, b - a), axis = 1)
+        cap = np.linalg.norm(np.cross(c - normgrads, a - normgrads), axis = 1)
+        abp = np.linalg.norm(np.cross(a - normgrads, b - normgrads), axis = 1)
+        bcp = np.linalg.norm(np.cross(c - normgrads, b - normgrads), axis = 1)
+        
+        u=np.divide(cap,abc)
+        v=np.divide(abp,abc)
+        w=np.divide(bcp,abc)
+        
+        colors[:,0] = v
+        colors[:,1] = u
+        colors[:,2] = w
+        
+        return colors 
+        
+        
+        
+        
+        
+        
+        
+
+
     
     
