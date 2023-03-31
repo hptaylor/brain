@@ -26,9 +26,9 @@ class Gradient:
 
         Parameters
         ----------
-        grad_path : str, optrwnal
+        grad_path : str, optional
             if supplied, used to load the gradient array. The default is None.
-        val_path : str, optrwnal
+        val_path : str, optional
             path to eigenvalue array. The default is None.
         gid : str, int, optional
             unique identifier for gradient. The default is None.
@@ -379,8 +379,12 @@ class Gradient:
         return normgrads
     
     
-    def get_3d_cmap(self, a = np.array([0,1.4,0.1]),b = np.array([-0.2,-0.2,0]),
-                    c = np.array([1.2,0.7,0])):
+    def get_3d_cmap(self, a = np.array([0,1.2,0.4]),b = np.array([-0.2,-0.2,0]),
+                    c = np.array([1.2,0.5,0])):
+        a = 1.1*a
+        b = 1.1*b
+        c = 1.1*c
+        
         normgrads = self.normalize_zero_to_one()
         normgrads = normgrads[:,:3]
         colors = np.zeros((self.garray.shape[0],3))
@@ -404,6 +408,16 @@ class Gradient:
         
         return colors 
         
+    def embed_plot_2d(self,x = 0, y = 1, age = None):
+        import matplotlib.pyplot as plt
+        plt.figure()
+        plt.scatter(self.garray[:,x],self.garray[:,y],s=0.6)
+        plt.xlabel(f'Gradient {x+1}')
+        plt.ylabel(f'Gradient f{y+1}')
+        if age is None:
+            plt.title(self.gid)
+        else:
+            plt.title(f'{self.gid}, age {age}')
         
         
         

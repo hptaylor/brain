@@ -2169,4 +2169,22 @@ def align_cluster_index(ref_cluster, map_cluster):
     #print(cont_mat)
     
     return(map_cluster)
+
+def exclude_elements(a, b):
+    '''
+
+    Parameters
+    ----------
+    a : numpy array 
+        list to be searched and modified by excluding elements in b.
+    b : numpy array
+        list of elements to exclude from a.
+
+    Returns
+    -------
+    numpy array.
+
+    '''
+    c = a[ ~np.in1d(a,b)]
+    return c
         

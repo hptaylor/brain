@@ -60,14 +60,17 @@ class GradientSet:
             ids = []
             if pathlist is not None: 
                 if type(pathlist) == str:
-                    pathlist = fps.get_paths_with_pattern(pathlist,fname_suffix='grads.npy',filenames=False)
+                    pathlist = fps.get_paths_with_pattern(pathlist,
+                                                          fname_suffix='grads.npy',
+                                                          filenames=False)
                 for (i,p) in enumerate(pathlist):
                     if get_ids:
                         ind = p.rfind('/') + 1
                         gid = p[ind:-10]
                         if get_vals:
                             val_path = p[:-9] + 'vals.npy'
-                            g = Gradient.Gradient(p,val_path, gid)
+                            g = Gradient.Gradient(grad_path = p,
+                                                  val_path = val_path, gid = gid)
                         else:
                             g = Gradient.Gradient(p,None, gid)
                         ids.append(gid)
@@ -90,12 +93,17 @@ class GradientSet:
         #number of gradients in set
         return self.dtable.shape[0]
     
+    
     def g(self, ind, return_obj):
         #return grad obj or array at index ind
         if return_obj:
             return self.dtable['grads'][ind]
         else:
             return self.dtable['grads'][ind].garray
+    
+    def get_g_from_gid(self, gid):
+        g = self.dtable[gs.dtable['gid'] == g.gid]['grads'].values[0]
+        return g
     
     def glist(self):
         #return list of grad arrays
@@ -137,9 +145,18 @@ class GradientSet:
         
         return GradientSet(dtable = newtable)
     
+    def get_age_from_gid_bcp(self):
+        if not 'age' in self.dtable:
+            self.dtable['age'] = np.nan
+        for i, g in enumerate(self.dtable['grads']):
+            if g.gid.startswith('MN') or g.gid.startswith('NC'):
+                subage = int(g.gid[12:])/365
+                self.dtable.loc[i,'age'] = subage
+            
+        
     def get_field_from_dataframe(self, dataframe, foreign_fieldname, 
                                  native_fieldname, foreign_key = 'src_subject_id', 
-                                 native_key = 'gid'):
+                                 native_key = 'gid', divide_by = 12,intkey = False):
         """
         
 
@@ -178,10 +195,23 @@ class GradientSet:
             self.dtable[nf] = np.nan
         for i in range (len(self.dtable)):
             n = self.dtable[nk][i]
+            if intkey and n.isdigit():
+                n = int(n)
             if n in set(df[fk]):
-                self.dtable.loc[i, nf] = (df[df[fk] == n][ff].to_numpy()[0])
+                self.dtable.loc[i, nf] = (df[df[fk] == n][ff].to_numpy()[0])/divide_by
             
-    
+    def get_ages_bcp_hcpd_hcpya_hcpa(self):
+        
+        
+        hcpd = '/Users/patricktaylor/Documents/lifespan_analysis/HCPD_subject_infosheet.xls'
+        hcpa = '/Users/patricktaylor/Documents/lifespan_analysis/HCPA_subject_infosheet.xls'
+        hcpya = '/Users/patricktaylor/Documents/lifespan_analysis/HCPYA/HCPYA_restricted.csv'
+        self.get_field_from_dataframe(hcpd,'interview_age', 'age')
+        self.get_field_from_dataframe(hcpa, 'interview_age', 'age')
+        self.get_field_from_dataframe(hcpya,'Age_in_Yrs', 'age','Subject',
+                                      divide_by = 1, intkey = True)
+        self.get_age_from_gid_bcp()
+        
     def compute_pca_template(self, n_comp = 3, **kwargs):
         """
         
@@ -249,7 +279,21 @@ class GradientSet:
     def surface_plot(self, gradind, plotind = None):
         self.g(gradind,True).surface_plot(plotind)
     
-    
+    def embed_plots_2d(self, inds = None, ids = None):
+        
+        if ids is not None:
+            if type(ids) ==str:
+                ids = [ids]
+            for i in ids:
+                g = self.get_g_from_gid(i)
+                g.embed_plot_2d(age = self.dtable[self.dtable['gid'] == g.gid]['age'].to_numpy()[0])
+        else:
+            if type(inds) == int:
+                inds = [inds]
+            for i in inds:
+                g = self.g(i,True)
+                g.embed_plot_2d(age = self.dtable['age'][i])
+            
             
             
             
