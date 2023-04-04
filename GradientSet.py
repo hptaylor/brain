@@ -102,8 +102,14 @@ class GradientSet:
             return self.dtable['grads'][ind].garray
     
     def get_g_from_gid(self, gid):
-        g = self.dtable[gs.dtable['gid'] == g.gid]['grads'].values[0]
+        g = self.dtable[self.dtable['gid'] == gid]['grads'].values[0]
         return g
+    @property
+    def grad_arr_list(self):
+        glist = []
+        for g in self.dtable.loc[:,'grads']:
+                glist.append(g.garray)                       
+        return np.array(glist)
     
     def glist(self):
         #return list of grad arrays
@@ -295,6 +301,17 @@ class GradientSet:
                 g.embed_plot_2d(age = self.dtable['age'][i])
             
             
+    def save_to_dataframe(self,directory,name_suffix = 'aligned_cos'):
+        for k in range(3):
+            dataframe=pd.DataFrame()
+            dataframe['Name']=self.dtable['gid']
+            dataframe['Age']=self.dtable['age']
+            gmat = self.grad_arr_list()
+            for i in range(self.dtable['grads'][0].nvert):
+                dataframe[f'v{i+1}'] = gmat[:,i,k]
+                
+            #dataframe.to_csv(f'/Users/patricktaylor/Documents/lifespan_analysis/individual/10p_fwhm3/dataframes/g{k+1}_aligned_cos.csv')
+            dataframe.to_csv(directory+f'g{k+1}_{name_suffix}.csv')
             
             
         
