@@ -45,13 +45,16 @@ class FittedGradient:
             rsq[:,i]=df['x'][1:]
         self.rsquared = rsq 
     
-    def load_standard_error(self,pathlist):
-        std_err=np.zeros((self.ntimepoints,self.nvert,self.ngrad))
-        for i,p in enumerate(pathlist):
-            df=pd.read_csv(p)
-            for j in range (self.nvert):
-                std_err[:,j,i]=df[f'V{j+2}']
-        self.std_err = std_err 
+    def load_standard_error(self,pathlist = None,array_path = None):
+        if pathlist is not None:
+            std_err=np.zeros((self.ntimepoints,self.nvert,self.ngrad))
+            for i,p in enumerate(pathlist):
+                df=pd.read_csv(p)
+                for j in range (self.nvert):
+                    std_err[:,j,i]=df[f'V{j+2}']
+            self.std_err = std_err 
+        else:
+            self.std_err = np.load(array_path)
         
     def get_gradient_at_age(self,age, zscore = True, return_obj = True):
         ind = uts.find_nearest_index(self.ages,age)
@@ -64,6 +67,14 @@ class FittedGradient:
         else:
             return g.garray 
     
+    def save_vtk_series(self,directory = '/Users/patricktaylor/Documents/lifespan_analysis/scratch/timeseries/',
+                        fname = '%s_emb.vtk',feature = None):
+        si = np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/si.npy')
+        if feature is None:
+            feature = self.array
+        for i in range (self.ntimepoints):
+            rw.save_eigenvector(directory+fname % i, self.array[i],si,feature)
+            
     def plot_grad_val_vs_age(self,vertind,gradind=None, zscore = True, 
                              sub_grads = None):
         
