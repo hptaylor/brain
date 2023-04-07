@@ -64,7 +64,8 @@ class FittedGradient:
         else:
             return g.garray 
     
-    def plot_grad_val_vs_age(self,vertind,gradind=None, zscore = True):
+    def plot_grad_val_vs_age(self,vertind,gradind=None, zscore = True, 
+                             sub_grads = None):
         
         fig, ax = plt.subplots()
         if gradind is None:
@@ -81,8 +82,14 @@ class FittedGradient:
             ax.plot(self.ages,y ,label = f'g{i+1}')
             ax.fill_between(self.ages, (y-ci), (y+ci), alpha = 0.1)
         ax.legend()
-                
         
+        if sub_grads is not None:
+            if gradind is not None:
+                subgradvals = sub_grads.grad_arr_list[:,vertind,gradind]
+                subages = sub_grads.ages()
+                ax.scatter(subages, subgradvals,s = 0.6)
+                
+    
         
     
             

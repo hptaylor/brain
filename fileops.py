@@ -43,5 +43,10 @@ def write_subject_text_file(subjlist, savepath):
     
     return 
 
-        
+def get_subs_from_txt_file(filepath):
+    
+    with open(filepath) as file:
+        lines = [line.rstrip() for line in file]
+    
+    return lines
     

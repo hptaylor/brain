@@ -17,7 +17,8 @@ import fileops as fps
 class GradientSet:
     
     def __init__(self, pathlist = None, garrays = None, index = None, 
-                 get_ids = True, get_vals = True, dtable = None):
+                 get_ids = True, get_vals = True, dtable = None, 
+                 aligned = False, get_ages = True):
         """
     
         Parameters
@@ -86,14 +87,25 @@ class GradientSet:
                 self.dtable['gid'] = np.array(ids)
             
         else:
-            self.dtable = dtable 
+            self.dtable = dtable
+        
+        self.aligned = aligned 
+        
+        if get_ages:
+            self.get_ages_bcp_hcpd_hcpya_hcpa()
+            
             
     @property
     def length(self):
         #number of gradients in set
         return self.dtable.shape[0]
     
-    
+    def ages(self):
+        if not 'age' in self.dtable:
+            self.dtable['age'] = np.nan
+        else:
+            return self.dtable['age'].to_numpy()
+        
     def g(self, ind, return_obj):
         #return grad obj or array at index ind
         if return_obj:
@@ -218,7 +230,7 @@ class GradientSet:
                                       divide_by = 1, intkey = True)
         self.get_age_from_gid_bcp()
         
-    def compute_pca_template(self, n_comp = 3, **kwargs):
+    def compute_pca_template(self, n_comp = 3,check_sign = True, **kwargs):
         """
         
 
@@ -250,17 +262,26 @@ class GradientSet:
             gmat[:,n_comp*i:n_comp*(i+1)]=glist[i].garray[:,:n_comp]
         pca=PCA(n_components=3)
         pca.fit(gmat.T)
-        v=pca.components_
-        self.template_grads = v.T
+        v=pca.components_.T
+        if check_sign:
+            if v[4185,0]<0:
+                v[:,0] = -1*v[:,0]
+            if v[5890,1]>0:
+                v[:,1] = -1*v[:,1]
+            if v[186,2]<0:
+                v[:,2] = -1*v[:,2]
+                
+        self.template_grads = v
         
-    def procrustes_align(self,replace = True, **kwargs):
+    def procrustes_align(self,replace = True, lower = 14, upper = 40, **kwargs):
         """
         
 
         Parameters
         ----------
         replace : boolean, optional
-            if true, replace garrays with aligned garrays. The default is True.
+            if True, replace garrays with aligned garrays. The default is True.
+            if False, return new GradientSet containing aligned gradients.
         **kwargs : 
             arguments for self.compute_pca_template().
 
@@ -274,13 +295,18 @@ class GradientSet:
         for g in self.dtable['grads']:
             garrlist.append(g.garray)
         if not hasattr(self, 'template_grads'):           
-            self.compute_pca_template(**kwargs)    
+            self.compute_pca_template(3,lower = lower, upper = upper, column = 'age')    
         glist = uts.procrustes_alignment(np.array(garrlist)[:,:,:3], 
                                          self.template_grads, n_iter=130, 
                                          tol=1e-20, verbose=True)
-        for i,g in enumerate(self.dtable['grads']):
-            
-            g.garray = glist[i]
+        if replace:
+            for i,g in enumerate(self.dtable['grads']):
+                
+                g.garray = glist[i]
+            self.aligned = True
+        else:
+            new_gs = GradientSet(garrays = glist)
+            return new_gs
             
     def surface_plot(self, gradind, plotind = None):
         self.g(gradind,True).surface_plot(plotind)
@@ -312,7 +338,6 @@ class GradientSet:
                 
             #dataframe.to_csv(f'/Users/patricktaylor/Documents/lifespan_analysis/individual/10p_fwhm3/dataframes/g{k+1}_aligned_cos.csv')
             dataframe.to_csv(directory+f'g{k+1}_{name_suffix}.csv')
-            
             
         
         
