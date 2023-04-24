@@ -19,7 +19,7 @@ class GradientSet:
     
     def __init__(self, pathlist = None, garrays = None, index = None, 
                  get_ids = True, get_vals = True, dtable = None, 
-                 aligned = False, get_ages = True):
+                 aligned = False, get_ages = True, get_cohort = True):
         """
     
         Parameters
@@ -94,6 +94,18 @@ class GradientSet:
         
         if get_ages:
             self.get_ages_bcp_hcpd_hcpya_hcpa()
+        if get_cohort:
+            cohorts = []
+            for sid in self.dtable['gid']:
+                if sid[0] == 'M' or sid[0] == 'N':
+                    cohorts.append(0)
+                if sid.startswith('HCD'):
+                    cohorts.append(1)
+                if sid[0].isdigit():
+                    cohorts.append(2)
+                if sid.startswith('HCA'):
+                    cohorts.append(3)
+            self.dtable['cohort_id'] = np.array(cohorts)
             
             
     @property
@@ -334,11 +346,14 @@ class GradientSet:
                 g.embed_plot_2d(age = self.dtable['age'][i])
             
             
-    def save_to_dataframe(self,directory,name_suffix = 'aligned_cos'):
+    def save_to_dataframe(self,directory,name_suffix = 'aligned_cos',cohort = False):
         for k in range(3):
             dataframe=pd.DataFrame()
             dataframe['Name']=self.dtable['gid']
             dataframe['Age']=self.dtable['age']
+            if cohort:
+                dataframe['Cohort_ID'] = self.dtable['cohort_id']
+                
             gmat = self.grad_arr_list()
             for i in range(self.dtable['grads'][0].nvert):
                 dataframe[f'v{i+1}'] = gmat[:,i,k]
