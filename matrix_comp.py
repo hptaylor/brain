@@ -257,51 +257,67 @@ def construct_FC_matrix_with_sparsity_mask(ts,chunk_size=1000):
 
     return scon
 
+# def truncate_top_k(x, k, inplace=False):
+#     m, n = x.shape
+#     # get (unsorted) indices of top-k values
+#     topk_indices = np.argpartition(x, -k, axis=1)[:, -k:]
+#     # get k-th value
+#     rows, _ = np.indices((m, k))
+#     kth_vals = x[rows, topk_indices].min(axis=1)
+#     # get boolean mask of values smaller than k-th
+#     is_smaller_than_kth = x < kth_vals[:, None]
+#     # replace mask by 0
+#     if not inplace:
+#         return np.where(is_smaller_than_kth, 0, x)
+#     x[is_smaller_than_kth] = 0
+#     return x
+
 def truncate_top_k(x, k, inplace=False):
     m, n = x.shape
-    # get (unsorted) indices of top-k values
-    topk_indices = np.argpartition(x, -k, axis=1)[:, -k:]
-    # get k-th value
-    rows, _ = np.indices((m, k))
-    kth_vals = x[rows, topk_indices].min(axis=1)
-    # get boolean mask of values smaller than k-th
+    topk_indices = np.argsort(x, axis=1)[:, -k:]
+    kth_vals = np.partition(x, k-1, axis=1)[:, k-1]
     is_smaller_than_kth = x < kth_vals[:, None]
-    # replace mask by 0
-    if not inplace:
-        return np.where(is_smaller_than_kth, 0, x)
-    x[is_smaller_than_kth] = 0
+    if inplace:
+        x[is_smaller_than_kth] = 0
+    else:
+        x = np.where(is_smaller_than_kth, 0, x)
+    x.flags.writeable = False
     return x
+# =============================================================================
+# def truncate_top_k(x, k, inplace=False):
+#     m, n = x.shape
+#     # get (unsorted) indices of top-k values
+#     topk_indices = np.argpartition(x, -k, axis=1)[:, -k:]
+#     # get k-th value
+#     rows, _ = np.indices((m, k))
+#     kth_vals = x[rows, topk_indices].min(axis=1)
+#     # get boolean mask of values smaller than k-th
+#     is_smaller_than_kth = x < kth_vals[:, None]
+#     # replace mask by 0
+#     if not inplace:
+#         return np.where(is_smaller_than_kth, 0, x)
+#     x[is_smaller_than_kth] = 0
+#     return x
+# =============================================================================
 
-def construct_FC_matrix_row_thresh(ts,threshold=0.01,chunk_size=1000,symmetric=True):
-    
-    
-    
+def construct_FC_matrix_row_thresh(ts, threshold=0.01, chunk_size=1000, symmetric=True):
     nts = normalize_time_series(ts).T
-
-    sparse_chunck_list = []
-    
-    keep_num=int(np.round(len(ts)*threshold))
-    
+    keep_num = int(np.round(len(ts) * threshold))
     print(keep_num, 'elements per row retained')
-    
-    for i in range(0, int(nts.shape[1]), chunk_size):
-        # portion of connectivity
-        pcon = (np.matmul(nts[:, i:i + chunk_size].T, nts) / nts.shape[0])
-        
-        # sparsified connectivity portion
-        spcon = sparse.csr_matrix(truncate_top_k(pcon,keep_num,inplace=True))
-        
-        
-        
-        sparse_chunck_list.append(spcon)
 
-    scon = sparse.vstack(sparse_chunck_list)
-    
-    #scon=scon.tolil()
-    #scon[scon<0]=0
-    scon=scon.tocsr()
+    scon_list = []
+    for i in range(0, nts.shape[1], chunk_size):
+        chunk = nts[:, i:i + chunk_size]
+        pcon = chunk.T @ nts / nts.shape[0]
+        pcon[:, :i] = 0
+        if i + chunk_size < nts.shape[1]:
+            pcon[:, i + chunk_size:] = 0
+        spcon = sparse.csr_matrix(truncate_top_k(pcon, keep_num, inplace=True))
+        scon_list.append(spcon)
+
+    scon = sparse.vstack(scon_list).tocsr()
     if symmetric:
-        scon=(scon+scon.T)/2
+        scon = (scon + scon.T) / 2
 
     return scon
 

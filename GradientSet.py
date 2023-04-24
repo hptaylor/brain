@@ -13,6 +13,7 @@ import Gradient
 import pandas as pd 
 from sklearn.decomposition import PCA
 import fileops as fps 
+import plotting as pltg
 
 class GradientSet:
     
@@ -99,13 +100,19 @@ class GradientSet:
     def length(self):
         #number of gradients in set
         return self.dtable.shape[0]
-    
+    @property
     def ages(self):
         if not 'age' in self.dtable:
             self.dtable['age'] = np.nan
         else:
             return self.dtable['age'].to_numpy()
-        
+    @property
+    def evals(self):
+        sub_evals = []
+        for g in self.dtable['grads']:      
+            sub_evals.append(g.varray)
+        return sub_evals
+    
     def g(self, ind, return_obj):
         #return grad obj or array at index ind
         if return_obj:
@@ -161,7 +168,7 @@ class GradientSet:
         #return new GradientSet where lower < column field < upper
         newtable = self.dtable[self.dtable[column].between(lower, upper)]
         
-        return GradientSet(dtable = newtable)
+        return GradientSet(dtable = newtable,get_ages=False)
     
     def get_age_from_gid_bcp(self):
         if not 'age' in self.dtable:
@@ -340,14 +347,13 @@ class GradientSet:
             dataframe.to_csv(directory+f'g{k+1}_{name_suffix}.csv')
             
         
+    def plot_eigenvalues(self,num_evals=None):
         
-        
-        
-    
-    
-    
-    
+        pltg.plot_eigenvalues_by_age(self.evals, self.ages,num_evals=num_evals)
         
             
         
-                
+    def plot_gradient_kdes(self, gradind = 0):
+        pltg.plot_kde_by_age(self.grad_arr_list[:,:,0],self.ages)
+        
+        

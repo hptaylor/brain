@@ -12,6 +12,7 @@ import surfplot as sp
 import pandas as pd 
 import seaborn as sns 
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 scrpath='/Users/patricktaylor/Documents/lifespan_analysis/scratch/'
 axisnames=['SA','VS','MR']
@@ -62,3 +63,42 @@ def embed_plot_all_vertices_histogram(vecs,ginds,title, columns = None ,save=Non
     if save is not None:
         plt.savefig(save)
     return 
+
+def plot_eigenvalues_by_age(eigenvalues, ages,num_evals = None):
+    n_sub = len(eigenvalues)
+    if num_evals is None:
+        num_evals = len(eigenvalues[0])
+    fig, ax = plt.subplots()
+    colormap = cm.ScalarMappable(cmap='inferno', norm=plt.Normalize(vmin=min(ages), vmax=max(ages)))
+    colormap.set_array([])
+    for i in range(n_sub):
+        ax.plot(eigenvalues[i][:num_evals], color=colormap.to_rgba(ages[i]),linewidth=0.5)
+    ax.set_xlabel('Eigenvalue Index')
+    ax.set_ylabel('Eigenvalue')
+    cbar = plt.colorbar(colormap)
+    cbar.ax.set_ylabel('Age')
+    plt.show()
+
+def plot_kde_by_age(data_list, age_list):
+    fig, ax = plt.subplots()
+    cmap = plt.get_cmap('inferno')
+    age_norm = plt.Normalize(min(age_list), max(age_list))
+
+    for i in range(len(data_list)):
+        data = data_list[i]
+        age = age_list[i]
+        color = cmap(age_norm(age))
+        sns.kdeplot(data, ax=ax, color=color)
+
+    ax.set_xlabel('Gradient Value')
+    ax.set_ylabel('Kernel Density Estimate')
+    ax.set_title('Distribution of Values by Age')
+    ax.legend()
+
+    # Add colorbar
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=age_norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm)
+   
+
+    plt.show()
