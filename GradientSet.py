@@ -107,7 +107,18 @@ class GradientSet:
                     cohorts.append(3)
             self.dtable['cohort_id'] = np.array(cohorts)
             
-            
+    
+    def __getitem__(self, index):
+        return self.dtable['grads'].iloc[index]
+    
+    def __repr__(self):
+        num_gradients = len(self.dtable['grads'])
+        return f"GradientSet(num_gradients={num_gradients}, aligned={self.aligned})"
+
+    def __str__(self):
+        num_gradients = len(self.dtable['grads'])
+        return f"GradientSet with {num_gradients} gradients (aligned: {self.aligned})"
+    
     @property
     def length(self):
         #number of gradients in set
@@ -125,7 +136,7 @@ class GradientSet:
             sub_evals.append(g.varray)
         return sub_evals
     
-    def g(self, ind, return_obj):
+    def g(self, ind, return_obj=True):
         #return grad obj or array at index ind
         if return_obj:
             return self.dtable['grads'][ind]
@@ -169,7 +180,26 @@ class GradientSet:
             self.dtable[metric_name] = reslist  
         else: 
             return reslist 
-        
+    
+    def get_dispersions(self,add_column=True):
+        disps = []
+        for g in self.dtable['grads']:
+            disps.append(g.compute_dispersion())
+        if add_column:
+            self.dtable['dispersion'] = disps
+        else:
+            return disps 
+    def get_ranges(self):
+        granges = np.zeros((self.length,3))
+        for i,g in enumerate(self.dtable['grads']):
+            granges[i] = g.grange[:3]
+        return granges
+    def get_vars(self):
+        gvars = np.zeros((self.length,3))
+        for i,g in enumerate(self.dtable['grads']):
+            gvars[i] = g.gvar[:3]
+        return gvars
+    
     def select_equal(self, column, value):
         #return new GradientSet where column field equals value
         newtable = self.dtable[self.dtable[column] == value]
@@ -178,8 +208,10 @@ class GradientSet:
     
     def select_between(self, column, lower, upper):
         #return new GradientSet where lower < column field < upper
-        newtable = self.dtable[self.dtable[column].between(lower, upper)]
-        
+        #newtable = self.dtable[self.dtable[column].between(lower, upper)]
+        newtable = self.dtable.loc[(self.dtable[column] > lower)]
+        newtable = newtable.loc[(newtable[column] < upper )]
+        newtable.reset_index(drop=True, inplace = True )
         return GradientSet(dtable = newtable,get_ages=False)
     
     def get_age_from_gid_bcp(self):
@@ -279,7 +311,7 @@ class GradientSet:
         gmat=np.zeros((glist[0].nvert,len(glist)*n_comp))
         for i in range (len(glist)):
             gmat[:,n_comp*i:n_comp*(i+1)]=glist[i].garray[:,:n_comp]
-        pca=PCA(n_components=3)
+        pca=PCA(n_components=n_comp)
         pca.fit(gmat.T)
         v=pca.components_.T
         if check_sign:
@@ -292,7 +324,7 @@ class GradientSet:
                 
         self.template_grads = v
         
-    def procrustes_align(self,replace = True, lower = 14, upper = 40, **kwargs):
+    def procrustes_align(self,replace = True, lower = 14, upper = 40, n_comp = 3, **kwargs):
         """
         
 
@@ -314,8 +346,8 @@ class GradientSet:
         for g in self.dtable['grads']:
             garrlist.append(g.garray)
         if not hasattr(self, 'template_grads'):           
-            self.compute_pca_template(3,lower = lower, upper = upper, column = 'age')    
-        glist = uts.procrustes_alignment(np.array(garrlist)[:,:,:3], 
+            self.compute_pca_template(n_comp,lower = lower, upper = upper, column = 'age')    
+        glist = uts.procrustes_alignment(np.array(garrlist)[:,:,:n_comp], 
                                          self.template_grads, n_iter=130, 
                                          tol=1e-20, verbose=True)
         if replace:

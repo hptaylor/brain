@@ -16,7 +16,7 @@ import matrix_comp as mtx
 import utility as uts 
 import decomp as dcp
 import plotting as pltg 
-
+import metrics as met 
 
 class Gradient:
     
@@ -296,7 +296,7 @@ class Gradient:
         
         
         
-    def compute_dispersion(self, vertex_dist_from_centroid = False, return_result = True):
+    def compute_dispersion(self, return_result = True):
         """
         
 
@@ -311,18 +311,11 @@ class Gradient:
         dispersion float or dist array if return_result is True/False. 
 
         """
-        centroid = np.mean(self.garray, axis = 0)
-        dif = self.garray - centroid
-        dists = np.square(np.linalg.norm(dif, axis = 1))
-        disp = np.mean(dists)
+        disp = met.dispersion_centroid(self.garray)
         self.dispersion = disp
-        if vertex_dist_from_centroid:
-            self.dists_to_centroid = dists 
+    
         if return_result:
-            if vertex_dist_from_centroid: 
-                return dists
-            else:
-                return disp
+            return disp
                 
     
     def compute_explanation_ratios(self):
@@ -338,6 +331,11 @@ class Gradient:
         
         self.neighbor_indices = inds
         self.neighbor_distances = dists 
+    
+    def local_density(self, num_neighbors=10):
+        inds, dists = uts.neighbors(self.garray, self.garray, num_neighbors)
+        avgdists = np.mean(dists,axis = 1)
+        return np.mean(avgdists)
     
     def compute_spearmanr(self, grad):
         
@@ -408,12 +406,12 @@ class Gradient:
         
         return colors 
         
-    def embed_plot_2d(self,x = 0, y = 1, age = None):
+    def embed_plot_2d(self,x = 1, y = 0, age = None):
         import matplotlib.pyplot as plt
         plt.figure()
         plt.scatter(self.garray[:,x],self.garray[:,y],s=0.6)
         plt.xlabel(f'Gradient {x+1}')
-        plt.ylabel(f'Gradient f{y+1}')
+        plt.ylabel(f'Gradient {y+1}')
         if age is None:
             plt.title(self.gid)
         else:

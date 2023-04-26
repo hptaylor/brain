@@ -107,7 +107,7 @@ def neighbors(searchedset,queryset,num):
     nbrs = skn.NearestNeighbors(n_neighbors=num, algorithm='auto').fit(searchedset)
     distances, indices = nbrs.kneighbors(queryset)
     end=time.time()
-    print('neighbors time=',(end-start))
+    #print('neighbors time=',(end-start))
     return indices,distances
 
 def histogram(data,yRange,numbins=1000,xrange=None,xtitle='values',ytitle='count',title='histogram',save=None):

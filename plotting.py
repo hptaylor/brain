@@ -13,6 +13,7 @@ import pandas as pd
 import seaborn as sns 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import numpy as np 
 
 scrpath='/Users/patricktaylor/Documents/lifespan_analysis/scratch/'
 axisnames=['SA','VS','MR']
@@ -102,3 +103,24 @@ def plot_kde_by_age(data_list, age_list):
    
 
     plt.show()
+
+def plot_metric_vs_age_log_scale_lifespan(ages, metric,metriclabel = 'metric'):
+    fig, ax = plt.subplots()
+    ax.scatter(np.log2(ages + 1), metric, s= 0.5)
+    ax.set_xticks([0,1, 2, 3, 4, 5,6])
+    ax.set_xticklabels(['0', '2', '4', '8', '16','32','64'], 
+                   fontsize=18)
+    ax.set_xlabel('age (years)')
+    ax.set_ylabel(metriclabel)
+    plt.show()
+    return 
+
+def plot_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
+    fig, ax = plt.subplots()
+    ax.scatter(np.log2(ages + 1), metric, s= 0.5)
+    ticks = ax.get_xticks()
+    ax.set_xticklabels([f'{round(2**i - 1)}' for i in ticks])
+    ax.set_xlabel('age (years)')
+    ax.set_ylabel(metriclabel)
+    plt.show()
+    
