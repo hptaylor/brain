@@ -65,17 +65,20 @@ def embed_plot_all_vertices_histogram(vecs,ginds,title, columns = None ,save=Non
         plt.savefig(save)
     return 
 
-def plot_eigenvalues_by_age(eigenvalues, ages,num_evals = None):
+def plot_eigenvalues_by_age(eigenvalues, ages,num_evals = None, ylabel = 'Eigenvalue',point = False,cmap = 'viridis'):
     n_sub = len(eigenvalues)
     if num_evals is None:
         num_evals = len(eigenvalues[0])
     fig, ax = plt.subplots()
-    colormap = cm.ScalarMappable(cmap='inferno', norm=plt.Normalize(vmin=min(ages), vmax=max(ages)))
+    colormap = cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=min(ages), vmax=max(ages)))
     colormap.set_array([])
     for i in range(n_sub):
-        ax.plot(eigenvalues[i][:num_evals], color=colormap.to_rgba(ages[i]),linewidth=0.5)
-    ax.set_xlabel('Eigenvalue Index')
-    ax.set_ylabel('Eigenvalue')
+        if not point:
+            ax.plot(eigenvalues[i][:num_evals], color=colormap.to_rgba(ages[i]),linewidth=0.5)
+        else:
+            ax.plot(eigenvalues[i][:num_evals], 'o', color=colormap.to_rgba(ages[i]),ms = 0.3)
+    ax.set_xlabel('gradient index')
+    ax.set_ylabel(ylabel)
     cbar = plt.colorbar(colormap)
     cbar.ax.set_ylabel('Age')
     plt.show()

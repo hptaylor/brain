@@ -51,7 +51,7 @@ class Gradient:
             self.array = None
             
         self.gid = gid 
-    
+        self.aligned = False
     
     def set_gid(self,gid):
         self.gid = gid 
@@ -81,8 +81,22 @@ class Gradient:
     def gvar(self):
         gv = [np.var(self.garray[:,i]) for i in range (self.ngrad)]
         return np.array(gv)
-
-        
+    
+    @property
+    def explanation_ratios(self):
+        ratios = np.zeros(self.varray.shape)
+        valsum = np.sum(self.varray)
+        for j in range (self.varray.shape[0]):
+            ratios[j]=self.varray[j]/valsum
+        return ratios 
+    @property
+    def range_ratios(self):
+        ratios = np.zeros(self.garray.shape[1])
+        valsum = np.sum(self.grange)
+        for j in range (self.grange.shape[0]):
+            ratios[j]=self.grange[j]/valsum
+        return ratios 
+    
     def info(self):
         print(f'ID {self.string}')
         print(f'{self.nvert} vertices, {self.ngrad} gradients')
@@ -318,12 +332,7 @@ class Gradient:
             return disp
                 
     
-    def compute_explanation_ratios(self):
-        ratios = np.zeros(self.varray.shape)
-        valsum = np.sum(self.varray)
-        for j in range (self.varray.shape[0]):
-            ratios[j]=self.varray[j]/valsum
-        self.explanation_ratios = ratios 
+    
         
     def get_neighborhoods(self, num_neighbors = 100):
         

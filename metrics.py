@@ -18,6 +18,14 @@ def dispersion_centroid(vecs):
     disp = np.mean(squared_dists)
     return disp
 
+def dists_to_centroid(vecs):
+    centroid = np.mean(vecs, axis=0)
+    dif = vecs - centroid
+    dists = np.linalg.norm(dif, axis=1, ord=2)
+    return dists
+def dist_to_centroid_var(vecs):
+    return np.var(dists_to_centroid(vecs))
+
 def embedding_degree_centrality(vecs,nn_num = 300):
     inds, dists = uts.neighbors(vecs,vecs,num=nn_num)
     avgdist = np.mean(dists, axis = 1)

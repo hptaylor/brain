@@ -9,11 +9,14 @@ Created on Sun Feb 19 16:52:46 2023
 import reading_writing as rw 
 import utility as uts 
 import numpy as np 
+from brainspace.gradient.alignment import procrustes
 import Gradient 
 import pandas as pd 
 from sklearn.decomposition import PCA
 import fileops as fps 
 import plotting as pltg
+import clustering as clst 
+import metrics as mts
 
 class GradientSet:
     
@@ -135,6 +138,13 @@ class GradientSet:
         for g in self.dtable['grads']:      
             sub_evals.append(g.varray)
         return sub_evals
+    @property
+    def granges(self):
+        return self.get_ranges()
+    
+    @property 
+    def gvars(self):
+        return self.get_vars()
     
     def g(self, ind, return_obj=True):
         #return grad obj or array at index ind
@@ -152,6 +162,12 @@ class GradientSet:
         for g in self.dtable.loc[:,'grads']:
                 glist.append(g.garray)                       
         return np.array(glist)
+    def get_explanation_ratios(self):
+        ratios = [g.explanation_ratios for g in self.dtable['grads']]
+        return np.array(ratios)
+    def get_range_ratios(self):
+        ratios = [g.range_ratios for g in self.dtable['grads']]
+        return np.array(ratios)
     
     def glist(self):
         #return list of grad arrays
@@ -189,6 +205,8 @@ class GradientSet:
             self.dtable['dispersion'] = disps
         else:
             return disps 
+    
+        
     def get_ranges(self):
         granges = np.zeros((self.length,3))
         for i,g in enumerate(self.dtable['grads']):
@@ -281,7 +299,7 @@ class GradientSet:
                                       divide_by = 1, intkey = True)
         self.get_age_from_gid_bcp()
         
-    def compute_pca_template(self, n_comp = 3,check_sign = True, **kwargs):
+    def compute_pca_template(self, n_comp = 3,check_sign = True, scale_by_vals=False, **kwargs):
         """
         
 
@@ -314,6 +332,11 @@ class GradientSet:
         pca=PCA(n_components=n_comp)
         pca.fit(gmat.T)
         v=pca.components_.T
+        if scale_by_vals:
+            vals = pca.singular_values_
+            for i,val in enumerate(vals):
+                v[:,i]*=val 
+            
         if check_sign:
             if v[4185,0]<0:
                 v[:,0] = -1*v[:,0]
@@ -324,7 +347,7 @@ class GradientSet:
                 
         self.template_grads = v
         
-    def procrustes_align(self,replace = True, lower = 14, upper = 40, n_comp = 3, **kwargs):
+    def procrustes_align(self,replace = True, lower = 14, upper = 40, n_comp = 3,return_reference=True, **kwargs):
         """
         
 
@@ -349,15 +372,57 @@ class GradientSet:
             self.compute_pca_template(n_comp,lower = lower, upper = upper, column = 'age')    
         glist = uts.procrustes_alignment(np.array(garrlist)[:,:,:n_comp], 
                                          self.template_grads, n_iter=130, 
-                                         tol=1e-20, verbose=True)
+                                         tol=1e-25, verbose=True, return_reference=return_reference)
+        if return_reference:
+            glist, reference = glist 
+        
+        self.template_grads = reference
         if replace:
             for i,g in enumerate(self.dtable['grads']):
                 
                 g.garray = glist[i]
+                g.aligned = True 
+                
             self.aligned = True
         else:
             new_gs = GradientSet(garrays = glist)
             return new_gs
+    
+    def procrustes_align_noniterative(self,replace=True, lower = 14, upper = 40, n_comp = 3, scale = True, center = True):
+        garrlist = []
+        for g in self.dtable['grads']:
+            garrlist.append(g.garray)
+        if not hasattr(self, 'template_grads'):           
+            self.compute_pca_template(n_comp,lower = lower, upper = upper, column = 'age')   
+        glist = [procrustes(g[:,:n_comp] ,self.template_grads,center,scale) for g in garrlist]
+        if replace:
+            for i,g in enumerate(self.dtable['grads']):
+                
+                g.garray = glist[i]
+                g.aligned = True 
+                
+            self.aligned = True
+        else:
+            new_gs = GradientSet(garrays = glist)
+            return new_gs
+    
+    def get_template_clustering(self, nclust = 7, clust_type = 'HAC'):
+        if clust_type == 'HAC':
+            lab = clst.hac(self.template_grads,nclust=nclust)
+            
+        if clust_type == 'kmeans':
+            lab = clst.kmeans(self.template_grads,nclust=nclust)
+        
+        self.clustering = lab 
+    def plot_grad_ranges(self):
+        
+        for i in range(self.g(0).garray.shape[1]):
+            pltg.plot_metric_vs_age_log(self.ages,self.granges[:,i],f'G{i+1} range')
+            
+    def plot_grad_vars(self):
+        
+        for i in range(self.g(0).garray.shape[1]):
+            pltg.plot_metric_vs_age_log(self.ages,self.gvars[:,i],f'G{i+1} variance')  
             
     def surface_plot(self, gradind, plotind = None):
         self.g(gradind,True).surface_plot(plotind)
@@ -394,13 +459,25 @@ class GradientSet:
             dataframe.to_csv(directory+f'g{k+1}_{name_suffix}.csv')
             
         
-    def plot_eigenvalues(self,num_evals=None):
-        
-        pltg.plot_eigenvalues_by_age(self.evals, self.ages,num_evals=num_evals)
-        
-            
+    def plot_eigenvalues(self,lower_age = None, upper_age = None,num_evals=None,exp_ratio=False,range_ratio=False,cmap = 'plasma'):
+        if lower_age is not None:
+            gs = self.select_between('age',lower_age,upper_age)
+        else:
+            gs = self 
+        if not exp_ratio and not range_ratio:
+            pltg.plot_eigenvalues_by_age(gs.evals, gs.ages,num_evals=num_evals,cmap = cmap)
+        if exp_ratio:
+            pltg.plot_eigenvalues_by_age(gs.get_explanation_ratios(), gs.ages,num_evals=num_evals,ylabel = 'explanation ratio',cmap = cmap)
+        if range_ratio:
+            pltg.plot_eigenvalues_by_age(gs.get_range_ratios(), gs.ages,num_evals=num_evals,ylabel = 'range ratio', cmap = cmap)
+    
+    def plot_dispersions_vs_age(self):
+        self.get_dispersions()
+        pltg.plot_metric_vs_age_log(self.ages,self.dtable['dispersion'],'dispersion')
         
     def plot_gradient_kdes(self, gradind = 0):
-        pltg.plot_kde_by_age(self.grad_arr_list[:,:,0],self.ages)
+        pltg.plot_kde_by_age(self.grad_arr_list[:,:,gradind],self.ages)
+    
         
+    
         
