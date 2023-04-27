@@ -208,12 +208,12 @@ class GradientSet:
     
         
     def get_ranges(self):
-        granges = np.zeros((self.length,3))
+        granges = np.zeros((self.length,self.g(0,False).shape[1]))
         for i,g in enumerate(self.dtable['grads']):
             granges[i] = g.grange[:3]
         return granges
     def get_vars(self):
-        gvars = np.zeros((self.length,3))
+        gvars = np.zeros((self.length,self.g(0,False).shape[1]))
         for i,g in enumerate(self.dtable['grads']):
             gvars[i] = g.gvar[:3]
         return gvars
