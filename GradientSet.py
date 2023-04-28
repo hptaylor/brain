@@ -210,12 +210,12 @@ class GradientSet:
     def get_ranges(self):
         granges = np.zeros((self.length,self.g(0,False).shape[1]))
         for i,g in enumerate(self.dtable['grads']):
-            granges[i] = g.grange[:3]
+            granges[i] = g.grange
         return granges
     def get_vars(self):
         gvars = np.zeros((self.length,self.g(0,False).shape[1]))
         for i,g in enumerate(self.dtable['grads']):
-            gvars[i] = g.gvar[:3]
+            gvars[i] = g.gvar
         return gvars
     
     def select_equal(self, column, value):
@@ -388,7 +388,8 @@ class GradientSet:
             new_gs = GradientSet(garrays = glist)
             return new_gs
     
-    def procrustes_align_noniterative(self,replace=True, lower = 14, upper = 40, n_comp = 3, scale = True, center = True):
+    def procrustes_align_noniterative(self,replace=True, lower = 14, upper = 40, 
+                                      n_comp = 3, scale = True, center = True):
         garrlist = []
         for g in self.dtable['grads']:
             garrlist.append(g.garray)
@@ -415,14 +416,14 @@ class GradientSet:
         
         self.clustering = lab 
     def plot_grad_ranges(self):
-        
+        granges = self.granges 
         for i in range(self.g(0).garray.shape[1]):
-            pltg.plot_metric_vs_age_log(self.ages,self.granges[:,i],f'G{i+1} range')
+            pltg.plot_metric_vs_age_log(self.ages,granges[:,i],f'G{i+1} range')
             
     def plot_grad_vars(self):
-        
+        gvars = self.gvars 
         for i in range(self.g(0).garray.shape[1]):
-            pltg.plot_metric_vs_age_log(self.ages,self.gvars[:,i],f'G{i+1} variance')  
+            pltg.plot_metric_vs_age_log(self.ages,gvars[:,i],f'G{i+1} variance')  
             
     def surface_plot(self, gradind, plotind = None):
         self.g(gradind,True).surface_plot(plotind)
