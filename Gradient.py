@@ -310,7 +310,7 @@ class Gradient:
         
         
         
-    def compute_dispersion(self, return_result = True):
+    def compute_dispersion(self, ndim=3,return_result = True):
         """
         
 
@@ -325,7 +325,7 @@ class Gradient:
         dispersion float or dist array if return_result is True/False. 
 
         """
-        disp = met.dispersion_centroid(self.garray)
+        disp = met.dispersion_centroid(self.garray[:,:ndim])
         self.dispersion = disp
     
         if return_result:

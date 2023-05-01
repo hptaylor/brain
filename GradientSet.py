@@ -197,10 +197,10 @@ class GradientSet:
         else: 
             return reslist 
     
-    def get_dispersions(self,add_column=True):
+    def get_dispersions(self,ndim=3,add_column=True):
         disps = []
         for g in self.dtable['grads']:
-            disps.append(g.compute_dispersion())
+            disps.append(g.compute_dispersion(ndim))
         if add_column:
             self.dtable['dispersion'] = disps
         else:
@@ -415,14 +415,14 @@ class GradientSet:
             lab = clst.kmeans(self.template_grads,nclust=nclust)
         
         self.clustering = lab 
-    def plot_grad_ranges(self):
+    def plot_grad_ranges(self,n=3):
         granges = self.granges 
-        for i in range(self.g(0).garray.shape[1]):
+        for i in range(n):
             pltg.plot_metric_vs_age_log(self.ages,granges[:,i],f'G{i+1} range')
             
-    def plot_grad_vars(self):
+    def plot_grad_vars(self,n=3):
         gvars = self.gvars 
-        for i in range(self.g(0).garray.shape[1]):
+        for i in range(n):
             pltg.plot_metric_vs_age_log(self.ages,gvars[:,i],f'G{i+1} variance')  
             
     def surface_plot(self, gradind, plotind = None):
@@ -472,8 +472,8 @@ class GradientSet:
         if range_ratio:
             pltg.plot_eigenvalues_by_age(gs.get_range_ratios(), gs.ages,num_evals=num_evals,ylabel = 'range ratio', cmap = cmap)
     
-    def plot_dispersions_vs_age(self):
-        self.get_dispersions()
+    def plot_dispersions_vs_age(self,ndim=3):
+        self.get_dispersions(ndim)
         pltg.plot_metric_vs_age_log(self.ages,self.dtable['dispersion'],'dispersion')
         
     def plot_gradient_kdes(self, gradind = 0):

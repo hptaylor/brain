@@ -126,4 +126,64 @@ def plot_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metriclabel)
     plt.show()
+
+from plotnine import ggplot, aes, geom_point, scale_x_continuous, ggtitle, geom_line, scale_color_gradientn
+from mizani.transforms import trans
     
+class Log1pTrans(trans):
+    @staticmethod
+    def transform(x):
+        return np.log1p(x)
+
+    @staticmethod
+    def inverse(x):
+        return np.expm1(x)
+
+
+# Function to create scatter plot
+def scatterplot_log_x_plus_1(ages, metric, metriclabel = 'metric'):
+    data = {
+        'age (years)': ages,
+        metriclabel: metric,
+    }
+    df = pd.DataFrame(data)
+
+    # Generate 10 equally spaced tick labels between min and max x values
+    x_ticks = np.linspace(np.min(ages), np.max(ages), 6)
+
+    scatterplot = (
+        ggplot(df, aes(x='age (years)', y=metriclabel))
+        + geom_point(size=0.5)
+        + scale_x_continuous(trans=Log1pTrans(), breaks=x_ticks, labels=x_ticks.astype(int))
+    )
+
+    return scatterplot
+
+#from plotnine import ggplot, aes, geom_line, ggtitle, scale_color_gradientn
+#import matplotlib.cm as cm
+
+def plot_eigenvalues_by_age(eigenvalues, ages):
+    # Create a pandas DataFrame from eigenvalues and ages
+    n_subjects, n_vals = eigenvalues.shape
+    data = {
+        'x': np.tile(np.arange(n_vals), n_subjects),
+        'y': eigenvalues.flatten(),
+        'age': np.repeat(ages, n_vals),
+        'subject': np.repeat(np.arange(n_subjects), n_vals)
+    }
+    df = pd.DataFrame(data)
+
+    # Get the 'magma' colormap from matplotlib and convert it to a list of colors
+    magma_colors = cm.get_cmap('plasma', 256)
+    colors = [magma_colors(i) for i in range(magma_colors.N)]
+
+    # Create a ggplot plot with eigenvalues as lines color-coded by subject age
+    plot = (
+        ggplot(df, aes(x='x', y='y', color='age', group='subject'))
+        + geom_line()
+        + ggtitle('Eigenvalues as Lines Color-coded by Subject Age')
+        + scale_color_gradientn(colors=colors)
+    )
+
+    return plot
+
