@@ -133,6 +133,21 @@ class GradientSet:
         else:
             return self.dtable['age'].to_numpy()
     @property
+    def gids(self):
+        return self.dtable['gid'].to_numpy()
+    
+    @property
+    def sids(self):
+        gids = self.gids
+        sids = []
+        for i in gids:
+            if i.startswith('M') or i.startswith('N'):
+                sids.append(i[:11])
+            else:
+                sids.append(i)
+        return np.array(sids)
+    
+    @property
     def evals(self):
         sub_evals = []
         for g in self.dtable['grads']:      
@@ -156,7 +171,7 @@ class GradientSet:
     def get_g_from_gid(self, gid):
         g = self.dtable[self.dtable['gid'] == gid]['grads'].values[0]
         return g
-    @property
+    
     def grad_arr_list(self):
         glist = []
         for g in self.dtable.loc[:,'grads']:
@@ -389,7 +404,7 @@ class GradientSet:
             return new_gs
     
     def procrustes_align_noniterative(self,replace=True, lower = 14, upper = 40, 
-                                      n_comp = 3, scale = True, center = True):
+                                      n_comp = 3, scale = False, center = False):
         garrlist = []
         for g in self.dtable['grads']:
             garrlist.append(g.garray)
@@ -444,22 +459,44 @@ class GradientSet:
                 g.embed_plot_2d(age = self.dtable['age'][i])
             
             
-    def save_to_dataframe(self,directory,name_suffix = 'aligned_cos',cohort = False):
-        for k in range(3):
-            dataframe=pd.DataFrame()
-            dataframe['Name']=self.dtable['gid']
-            dataframe['Age']=self.dtable['age']
-            if cohort:
-                dataframe['Cohort_ID'] = self.dtable['cohort_id']
-                
-            gmat = self.grad_arr_list()
-            for i in range(self.dtable['grads'][0].nvert):
-                dataframe[f'v{i+1}'] = gmat[:,i,k]
-                
-            #dataframe.to_csv(f'/Users/patricktaylor/Documents/lifespan_analysis/individual/10p_fwhm3/dataframes/g{k+1}_aligned_cos.csv')
-            dataframe.to_csv(directory+f'g{k+1}_{name_suffix}.csv')
+# =============================================================================
+#     def save_to_dataframe(self,directory,name_suffix = 'aligned_cos',cohort = False):
+#         for k in range(3):
+#             dataframe=pd.DataFrame()
+#             dataframe['Name']=self.sids
+#             dataframe['Age']=self.dtable['age']
+#             if cohort:
+#                 dataframe['Cohort_ID'] = self.dtable['cohort_id']
+#                 
+#             gmat = self.grad_arr_list
+#             for i in range(self.dtable['grads'][0].nvert):
+#                 dataframe[f'v{i+1}'] = gmat[:,i,k]
+#                 
+#             #dataframe.to_csv(f'/Users/patricktaylor/Documents/lifespan_analysis/individual/10p_fwhm3/dataframes/g{k+1}_aligned_cos.csv')
+#             dataframe.to_csv(directory+f'g{k+1}_{name_suffix}.csv')
+# =============================================================================
             
-        
+    
+
+    def save_to_dataframe(self, directory, name_suffix='aligned_cos', cohort=False):
+        gmat = self.grad_arr_list()
+    
+        for k in range(3):
+            # Create a DataFrame for the vector data
+            vector_data = pd.DataFrame(gmat[:, :, k], columns=[f'v{i+1}' for i in range(self.dtable['grads'][0].nvert)])
+    
+            # Create a DataFrame for the subject info
+            subject_info = pd.DataFrame({'Name': self.sids, 'Age': self.dtable['age']})
+            
+            if cohort:
+                subject_info['Cohort_ID'] = self.dtable['cohort_id']
+            
+            # Combine the subject info and vector data into a single DataFrame
+            dataframe = pd.concat([subject_info, vector_data], axis=1)
+            
+            # Save the DataFrame to a CSV file
+            dataframe.to_csv(directory + f'g{k+1}_{name_suffix}.csv', index=False)
+
     def plot_eigenvalues(self,lower_age = None, upper_age = None,num_evals=None,exp_ratio=False,range_ratio=False,cmap = 'plasma'):
         if lower_age is not None:
             gs = self.select_between('age',lower_age,upper_age)
@@ -477,7 +514,7 @@ class GradientSet:
         pltg.plot_metric_vs_age_log(self.ages,self.dtable['dispersion'],'dispersion')
         
     def plot_gradient_kdes(self, gradind = 0):
-        pltg.plot_kde_by_age(self.grad_arr_list[:,:,gradind],self.ages)
+        pltg.plot_kde_by_age(self.grad_arr_list()[:,:,gradind],self.ages)
     
         
     

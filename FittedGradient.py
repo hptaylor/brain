@@ -13,7 +13,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 import fileops as fps 
 import matplotlib.pyplot as plt
-
+import metrics as mts 
 class FittedGradient:
     
     def __init__(self,arraypath = None, csvlist = None, nvert = 20484, ngrad = 3, ntimepoints = 400, minage = 0, maxage = 100):
@@ -28,7 +28,7 @@ class FittedGradient:
             for i,p in enumerate(csvlist):
                 df = pd.read_csv(p)
                 for j in range (nvert):
-                    self.array[:,j,i] = df[f'V{j+2}']
+                    self.array[:,j,i] = df[f'V{j+1}']
         
         self.ages = np.arange(ntimepoints)/(ntimepoints/(maxage-minage))
         
@@ -42,7 +42,7 @@ class FittedGradient:
         rsq=np.zeros((self.nvert,3))
         for i,p in enumerate(pathlist):
             df=pd.read_csv(p)
-            rsq[:,i]=df['x'][1:]
+            rsq[:,i]=df['x'][:]
         self.rsquared = rsq 
     
     def load_standard_error(self,pathlist = None,array_path = None):
@@ -51,7 +51,7 @@ class FittedGradient:
             for i,p in enumerate(pathlist):
                 df=pd.read_csv(p)
                 for j in range (self.nvert):
-                    std_err[:,j,i]=df[f'V{j+2}']
+                    std_err[:,j,i]=df[f'V{j+1}']
             self.std_err = std_err 
         else:
             self.std_err = np.load(array_path)
@@ -102,5 +102,19 @@ class FittedGradient:
                 
     
         
-    
-            
+    def get_ranges(self):
+        granges = np.zeros((self.array.shape[0],self.array.shape[2]))
+        for i in range (self.ntimepoints):
+            for j in range (self.ngrad):
+                granges[i,j] = np.max(self.array[i,:,j])-np.min(self.array[i,:,j])
+        self.granges = granges
+    def get_vars(self):
+        gvars = np.zeros((self.array.shape[0],self.array.shape[2]))
+        for i in range (self.ntimepoints):
+            for j in range (self.ngrad):
+                gvars[i,j] = np.var(self.array[i,:,j])
+        self.gvars = gvars
+        
+    def get_dispersion(self):
+        disp = np.array([mts.dispersion_centroid(vecs) for vecs in self.array])
+        self.dispersion = disp 

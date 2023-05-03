@@ -126,6 +126,15 @@ def plot_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metriclabel)
     plt.show()
+    
+def plot_line_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
+    fig, ax = plt.subplots()
+    ax.plot(np.log2(ages + 1), metric)
+    ticks = ax.get_xticks()
+    ax.set_xticklabels([f'{round(2**i - 1)}' for i in ticks])
+    ax.set_xlabel('age (years)')
+    ax.set_ylabel(metriclabel)
+    plt.show()
 
 from plotnine import ggplot, aes, geom_point, scale_x_continuous, ggtitle, geom_line, scale_color_gradientn
 from mizani.transforms import trans
@@ -159,10 +168,51 @@ def scatterplot_log_x_plus_1(ages, metric, metriclabel = 'metric'):
 
     return scatterplot
 
+def line_plot_log_x_plus_1( metric, metriclabel = 'metric'):
+    ages=np.arange(400)/4
+    data = {
+        'age (years)': ages,
+        metriclabel: metric,
+    }
+    df = pd.DataFrame(data)
+
+    # Generate 10 equally spaced tick labels between min and max x values
+    x_ticks = np.linspace(np.min(ages), np.max(ages), 6)
+
+    plot = (
+        ggplot(df, aes(x='age (years)', y=metriclabel))
+        + geom_line(size=1)
+        + scale_x_continuous(trans=Log1pTrans(), breaks=x_ticks, labels=x_ticks.astype(int))
+    )
+
+    return plot
+
+def line_plots_log_x_plus_1(metrics, metric_labels):
+    ages = np.arange(400) / 4
+
+    # Create a DataFrame with the age column and each metric column
+    data = {'age (years)': ages}
+    for metric, metric_label in zip(metrics, metric_labels):
+        data[metric_label] = metric
+    df = pd.DataFrame(data)
+
+    # Melt the DataFrame to have a long format suitable for ggplot
+    df_melted = pd.melt(df, id_vars=['age (years)'], value_vars=metric_labels, var_name='metric', value_name='value')
+
+    # Generate 10 equally spaced tick labels between min and max x values
+    x_ticks = np.linspace(np.min(ages), np.max(ages), 6)
+
+    plot = (
+        ggplot(df_melted, aes(x='age (years)', y='value', color='metric'))
+        + geom_line(size=1)
+        + scale_x_continuous(trans=Log1pTrans(), breaks=x_ticks, labels=x_ticks.astype(int))
+    )
+
+    return plot
 #from plotnine import ggplot, aes, geom_line, ggtitle, scale_color_gradientn
 #import matplotlib.cm as cm
 
-def plot_eigenvalues_by_age(eigenvalues, ages):
+def plot_eigenvalues_by_age_gg(eigenvalues, ages):
     # Create a pandas DataFrame from eigenvalues and ages
     n_subjects, n_vals = eigenvalues.shape
     data = {
