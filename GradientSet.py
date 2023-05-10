@@ -314,7 +314,9 @@ class GradientSet:
                                       divide_by = 1, intkey = True)
         self.get_age_from_gid_bcp()
         
-    def compute_pca_template(self, n_comp = 3,check_sign = True, scale_by_vals=False, **kwargs):
+    def compute_pca_template(self, n_comp = 3,check_sign = True, 
+                             scale_by_vals=False, scale_m1_to_1=False, 
+                             return_temp=False, **kwargs):
         """
         
 
@@ -351,6 +353,8 @@ class GradientSet:
             vals = pca.singular_values_
             for i,val in enumerate(vals):
                 v[:,i]*=val 
+        if scale_m1_to_1:
+            v = uts.scale_vecs_m1_to_1(v)
             
         if check_sign:
             if v[4185,0]<0:
@@ -359,8 +363,10 @@ class GradientSet:
                 v[:,1] = -1*v[:,1]
             if v[186,2]<0:
                 v[:,2] = -1*v[:,2]
-                
-        self.template_grads = v
+        if return_temp:
+            return v 
+        else:
+            self.template_grads = v
         
     def procrustes_align(self,replace = True, lower = 14, upper = 40, n_comp = 3,return_reference=True, **kwargs):
         """
@@ -380,14 +386,17 @@ class GradientSet:
         all gradients 
 
         """
+        
         garrlist = []
         for g in self.dtable['grads']:
             garrlist.append(g.garray)
+        
         if not hasattr(self, 'template_grads'):           
             self.compute_pca_template(n_comp,lower = lower, upper = upper, column = 'age')    
         glist = uts.procrustes_alignment(np.array(garrlist)[:,:,:n_comp], 
                                          self.template_grads, n_iter=130, 
                                          tol=1e-25, verbose=True, return_reference=return_reference)
+    
         if return_reference:
             glist, reference = glist 
         
@@ -404,12 +413,13 @@ class GradientSet:
             return new_gs
     
     def procrustes_align_noniterative(self,replace=True, lower = 14, upper = 40, 
-                                      n_comp = 3, scale = False, center = False):
+                                      n_comp = 3, scale = False, center = False,
+                                      scale_template = False):
         garrlist = []
         for g in self.dtable['grads']:
             garrlist.append(g.garray)
         if not hasattr(self, 'template_grads'):           
-            self.compute_pca_template(n_comp,lower = lower, upper = upper, column = 'age')   
+            self.compute_pca_template(n_comp,lower = lower, upper = upper, column = 'age', scale_m1_to_1=scale_template)   
         glist = [procrustes(g[:,:n_comp] ,self.template_grads,center,scale) for g in garrlist]
         if replace:
             for i,g in enumerate(self.dtable['grads']):
@@ -421,6 +431,13 @@ class GradientSet:
         else:
             new_gs = GradientSet(garrays = glist)
             return new_gs
+    
+    def get_cos_sim_w_template(self):
+        cossims = np.zeros((self.length,self.template_grads.shape[1]))
+        for i,g in enumerate(self.dtable['grads']):
+            for j in range (cossims.shape[1]):
+                cossims[i,j] = uts.cos_norm(g.garray[:,j],self.template_grads[:,j])
+        return cossims 
     
     def get_template_clustering(self, nclust = 7, clust_type = 'HAC'):
         if clust_type == 'HAC':
@@ -439,6 +456,10 @@ class GradientSet:
         gvars = self.gvars 
         for i in range(n):
             pltg.plot_metric_vs_age_log(self.ages,gvars[:,i],f'G{i+1} variance')  
+    def plot_cos_sims_to_template(self,n=3):
+        cossims = self.get_cos_sim_w_template()
+        for i in range (n):
+            pltg.plot_metric_vs_age_log(self.ages,cossims[:,i],f'G{i+1} cosine sim')
             
     def surface_plot(self, gradind, plotind = None):
         self.g(gradind,True).surface_plot(plotind)

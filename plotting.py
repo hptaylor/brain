@@ -118,6 +118,7 @@ def plot_metric_vs_age_log_scale_lifespan(ages, metric,metriclabel = 'metric'):
     plt.show()
     return 
 
+
 def plot_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
     fig, ax = plt.subplots()
     ax.scatter(np.log2(ages + 1), metric, s= 0.5)
@@ -136,6 +137,17 @@ def plot_line_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
     ax.set_ylabel(metriclabel)
     plt.show()
 
+def plot_lines_metric_vs_age_log(ages, metric, metriclabel = 'metric',keys=['SA','VS','MR']):
+    fig, ax = plt.subplots()
+    for i in range(metric.shape[1]):
+        ax.plot(np.log2(ages + 1), metric[:,i],label=keys[i])
+    ticks = ax.get_xticks()
+    ax.set_xticklabels([f'{round(2**i - 1)}' for i in ticks])
+    ax.set_xlabel('age (years)')
+    ax.set_ylabel(metriclabel)
+    ax.legend()
+    plt.show()
+    
 from plotnine import ggplot, aes, geom_point, scale_x_continuous, ggtitle, geom_line, scale_color_gradientn
 from mizani.transforms import trans
     
@@ -237,3 +249,24 @@ def plot_eigenvalues_by_age_gg(eigenvalues, ages):
 
     return plot
 
+def plot_subject_data_and_fit(subject_data, subject_ages, fitted_data, age_atlas):
+    if len(subject_data) != len(subject_ages):
+        raise ValueError("Length of subject_data and subject_ages must be the same (n_subjects).")
+    
+    if len(fitted_data) != len(age_atlas):
+        raise ValueError("Length of fitted_data and age_atlas must be the same (n_timepoints).")
+    
+    # Create a scatter plot of subject_data vs subject_ages
+    plt.scatter(subject_ages, subject_data, label='Subject Data')
+    
+    # Create a line plot of fitted_data vs age_atlas
+    plt.plot(age_atlas, fitted_data, label='Fitted Data', color='red')
+    
+    # Add labels, title, and legend
+    plt.xlabel("Age")
+    plt.ylabel("Data Value")
+    plt.title("Subject Data vs Age and Fitted Data")
+    plt.legend()
+    
+    # Show the plot
+    plt.show()

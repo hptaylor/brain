@@ -97,7 +97,33 @@ def polynomial_fit_plot(metric,deg,lab=None,col=None):
 #     return 
 # =============================================================================
 
+def scale_to_range(vec):
+    min_val = np.min(vec)
+    max_val = np.max(vec)
+
+    # Normalize the vector to range [0, 1]
+    normalized_vec = (vec - min_val) / (max_val - min_val)
+
+    # Scale the normalized vector to range [-1, 1]
+    scaled_vec = 2 * normalized_vec - 1
+
+    return scaled_vec
+
+def scale_vecs_m1_to_1(vecs):
+    scaledvecs = np.zeros(vecs.shape)
+    for i in range (vecs.shape[1]):
+        scaledvecs[:,i] = scale_to_range(vecs[:,i])
+    return scaledvecs 
+
+def cos_norm(v1,v2):
     
+    dot = np.dot(v1,v2)
+    
+    n1 = np.linalg.norm(v1)
+    n2 = np.linalg.norm(v2)
+    
+    return np.abs(dot/(n1*n2))
+
 def neighbors(searchedset,queryset,num):
     '''
     computes num nearest neighbors of queryset in searchedset and returns numpy arrays size (len(queryset),num) 

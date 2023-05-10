@@ -14,12 +14,23 @@ from sklearn.decomposition import PCA
 import fileops as fps 
 import matplotlib.pyplot as plt
 import metrics as mts 
+import os
 class FittedGradient:
     
-    def __init__(self,arraypath = None, csvlist = None, nvert = 20484, ngrad = 3, ntimepoints = 400, minage = 0, maxage = 100):
+    def __init__(self,directory=None, arraypath = None, csvlist = None, nvert = 20484, ngrad = 3, ntimepoints = 400, minage = 0, maxage = 100):
         self.nvert = 20484
         self.ngrad = ngrad
         self.ntimepoints = ntimepoints
+        
+        if directory is not None:
+            self.array = np.load(directory+'grads_gamm.npy')
+            p = directory+'rsq.npy'
+            if os.path.isfile(p):
+                self.rsquared = np.load(p)
+            p = directory+'std_err.npy'
+            if os.path.isfile(p):
+                self.std_err = np.load(p)
+            
         if arraypath is not None:
             self.array = np.load(arraypath)
         if csvlist is not None: 
@@ -90,15 +101,18 @@ class FittedGradient:
                 y = self.zarray[:,vertind,i]
             else:
                 y = self.array[:,vertind,i]
-            ax.plot(self.ages,y ,label = f'g{i+1}')
-            ax.fill_between(self.ages, (y-ci), (y+ci), alpha = 0.1)
+            ax.plot(np.log2(self.ages+1),y ,label = f'g{i+1}')
+            ax.fill_between(np.log2(self.ages+1), (y-ci), (y+ci), alpha = 0.5)
         ax.legend()
         
         if sub_grads is not None:
             if gradind is not None:
-                subgradvals = sub_grads.grad_arr_list[:,vertind,gradind]
-                subages = sub_grads.ages()
-                ax.scatter(subages, subgradvals,s = 0.6)
+                subgradvals = sub_grads.grad_arr_list()[:,vertind,gradind]
+                subages = sub_grads.ages
+                ax.scatter(np.log2(subages+1), subgradvals,s = 0.6)
+        ticks = ax.get_xticks()
+        ax.set_xticklabels([f'{round(2**i - 1)}' for i in ticks])
+        ax.set_xlabel('age (years)')
                 
     
         
