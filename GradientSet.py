@@ -414,13 +414,17 @@ class GradientSet:
     
     def procrustes_align_noniterative(self,replace=True, lower = 14, upper = 40, 
                                       n_comp = 3, scale = False, center = False,
-                                      scale_template = False):
-        garrlist = []
-        for g in self.dtable['grads']:
-            garrlist.append(g.garray)
-        if not hasattr(self, 'template_grads'):           
-            self.compute_pca_template(n_comp,lower = lower, upper = upper, column = 'age', scale_m1_to_1=scale_template)   
-        glist = [procrustes(g[:,:n_comp] ,self.template_grads,center,scale) for g in garrlist]
+                                      scale_template = False,template=None):
+        if template is None:
+            garrlist = []
+            for g in self.dtable['grads']:
+                garrlist.append(g.garray)
+            if not hasattr(self, 'template_grads'):           
+                self.compute_pca_template(n_comp,lower = lower, upper = upper, column = 'age', scale_m1_to_1=scale_template) 
+        if template is None:
+            glist = [procrustes(g[:,:n_comp] ,self.template_grads,center,scale) for g in garrlist]
+        else:
+            glist = [procrustes(g[:,:n_comp] ,template,center,scale) for g in self.grad_arr_list()]
         if replace:
             for i,g in enumerate(self.dtable['grads']):
                 

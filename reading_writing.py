@@ -226,8 +226,7 @@ def save_surface_to_hems(filename,points,edges,feature,color=None):
 def save_eigenvector(filename,points,edges,vecs):
     Cells = {"triangle": edges}
     V={}
-    if len(points)!=len(vecs):
-        vecs=uts.unmask_medial_wall(vecs,bcpmask)
+    
         
     if len(vecs.shape)==1:
         v=vecs
