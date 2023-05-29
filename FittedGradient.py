@@ -84,7 +84,7 @@ class FittedGradient:
         if feature is None:
             feature = self.array
         for i in range (self.ntimepoints):
-            rw.save_eigenvector(directory+fname % i, self.array[i],si,feature)
+            rw.save_eigenvector(directory+fname % i, self.array[i],si,self.array[i])
             
     def plot_grad_val_vs_age(self,vertind,gradind=None, zscore = True, 
                              sub_grads = None):

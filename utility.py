@@ -19,7 +19,7 @@ from sklearn.cluster import KMeans
 import io as rw
 import icc 
 import glob
-
+import pandas as pd 
 #logage=np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/log_age.npy')
 #ages=np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/timepointlist.npy')
 #samplesize=np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/numsubs.npy')
@@ -96,7 +96,18 @@ def polynomial_fit_plot(metric,deg,lab=None,col=None):
 #         add_logage_axis(yaxis=yaxis,labs=labels,legend=legend)
 #     return 
 # =============================================================================
-
+def load_gamm_fit(path,ndim=3):
+    df=pd.read_csv(path)
+    metric = np.zeros((400,ndim))
+    for i in range(ndim):
+        metric[:,i]=df[f'V{i+1}'].to_numpy()
+    return metric
+def load_subj_metric_from_csv(path,ndim=3):
+    df=pd.read_csv(path)
+    metric = np.zeros((df['v1'].size,ndim))
+    for i in range(ndim):
+        metric[:,i]=df[f'v{i+1}'].to_numpy()
+    return metric
 def scale_to_range(vec):
     min_val = np.min(vec)
     max_val = np.max(vec)

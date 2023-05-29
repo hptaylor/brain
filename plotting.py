@@ -147,6 +147,35 @@ def plot_lines_metric_vs_age_log(ages, metric, metriclabel = 'metric',keys=['SA'
     ax.set_ylabel(metriclabel)
     ax.legend()
     plt.show()
+
+def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_error=None):
+    """
+    This function plots individual metric data along with fitted metric values over age. 
+    The x-axis values (age) are transformed using log2.
+    
+    Parameters:
+    indages (array-like): Individual ages corresponding to individual metric values.
+    indmetric (array-like): Individual metric values to be plotted.
+    fitages (array-like): Ages corresponding to the fitted metric values.
+    fitmetric (array-like): Fitted metric values to be plotted.
+    metriclabel (str): Label for the y-axis representing the metric.
+    std_error (array-like, optional): Standard errors corresponding to the fitted metric values. 
+                                      If provided, these will be used to add a shaded region around the fit line. 
+                                      Defaults to None.
+    
+    Returns:
+    None. The function directly plots the data using matplotlib.
+    """
+    fig, ax = plt.subplots()
+    ax.plot(np.log2(fitages + 1), fitmetric, c='blue')
+    if std_error is not None:
+        ax.fill_between(np.log2(fitages+1), fitmetric-std_error, fitmetric+std_error, color='blue', alpha=0.2)
+    ax.scatter(np.log2(indages + 1), indmetric, s=0.5, c='black')
+    ticks = ax.get_xticks()
+    ax.set_xticklabels([f'{round(2**i - 1)}' for i in ticks])
+    ax.set_xlabel('age (years)')
+    ax.set_ylabel(metriclabel)
+    plt.show()
     
 from plotnine import ggplot, aes, geom_point, scale_x_continuous, ggtitle, geom_line, scale_color_gradientn
 from mizani.transforms import trans

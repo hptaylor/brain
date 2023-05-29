@@ -5,7 +5,7 @@ Created on Sun Feb 19 16:52:46 2023
 
 @author: patricktaylor
 """
-
+import os 
 import reading_writing as rw 
 import utility as uts 
 import numpy as np 
@@ -17,6 +17,7 @@ import fileops as fps
 import plotting as pltg
 import clustering as clst 
 import metrics as mts
+import GammFit 
 
 class GradientSet:
     
@@ -110,7 +111,7 @@ class GradientSet:
                     cohorts.append(3)
             self.dtable['cohort_id'] = np.array(cohorts)
             
-    
+        self.nvert = self.dtable['grads'][0].nvert
     def __getitem__(self, index):
         return self.dtable['grads'].iloc[index]
     
@@ -367,7 +368,29 @@ class GradientSet:
             return v 
         else:
             self.template_grads = v
+    def two_step_template(self,n_comp=10,windows=[0,0.5,1,2,4,8,12,18,25,35,50,100]):
+        templates = {}
+        gmat = np.zeros((self.nvert, n_comp*(len(windows)-1)))
         
+        for i in range(len(windows)-1):
+            temp = self.compute_pca_template(n_comp,check_sign=False,
+                                             return_temp=True,lower=windows[i],
+                                             upper=windows[i+1],column='age',
+                                             scale_by_vals=True)
+            templates[f'{windows[i]}']=temp 
+            gmat[:,n_comp*i:n_comp*(i+1)]=temp
+        pca = PCA(n_components=n_comp)
+        pca.fit(gmat.T)
+        v=pca.components_.T
+        if v[4185,0]<0:
+            v[:,0] = -1*v[:,0]
+        if v[5890,1]>0:
+            v[:,1] = -1*v[:,1]
+        if v[186,2]<0:
+            v[:,2] = -1*v[:,2]
+            
+        return v, templates
+    
     def procrustes_align(self,replace = True, lower = 14, upper = 40, n_comp = 3,return_reference=True, **kwargs):
         """
         
@@ -521,7 +544,30 @@ class GradientSet:
             
             # Save the DataFrame to a CSV file
             dataframe.to_csv(directory + f'g{k+1}_{name_suffix}.csv', index=False)
-
+    
+    def save_metric_to_dataframe(self,metric,directory, name='metric', cohort=True,ndim=3):
+        gmat = metric
+    
+        
+            # Create a DataFrame for the vector data
+        vector_data = pd.DataFrame(gmat, columns=[f'v{i+1}' for i in range(ndim)])
+    
+            # Create a DataFrame for the subject info
+        subject_info = pd.DataFrame({'Name': self.sids, 'Age': self.dtable['age']})
+            
+        if cohort:
+            subject_info['Cohort_ID'] = self.dtable['cohort_id']
+            
+            # Combine the subject info and vector data into a single DataFrame
+        dataframe = pd.concat([subject_info, vector_data], axis=1)
+            
+            # Save the DataFrame to a CSV file
+        dataframe.to_csv(directory + f'{name}.csv', index=False)
+    def fit_gamm_metric(self,metric,directory,name,cohort=True,ndim=3,k=10):
+        self.save_metric_to_dataframe(metric,directory,name,cohort,ndim)
+        os.system(f'Rscript fit_metric_GAMM.R {directory} {name} {k}')
+        return GammFit.GammFit(directory,name,ndim)
+    
     def plot_eigenvalues(self,lower_age = None, upper_age = None,num_evals=None,exp_ratio=False,range_ratio=False,cmap = 'plasma'):
         if lower_age is not None:
             gs = self.select_between('age',lower_age,upper_age)
