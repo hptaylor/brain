@@ -5,6 +5,7 @@ Created on Tue Apr  4 13:58:14 2023
 
 @author: patricktaylor
 """
+import scipy.stats as ss 
 import reading_writing as rw 
 import utility as uts 
 import numpy as np 
@@ -17,37 +18,41 @@ import metrics as mts
 import os
 class FittedGradient:
     
-    def __init__(self,directory=None, arraypath = None, csvlist = None, nvert = 20484, ngrad = 3, ntimepoints = 400, minage = 0, maxage = 100):
-        self.nvert = 20484
+    def __init__(self, g1_path=None, directory=None, arraypath=None, nvert=20484, ngrad=3, ntimepoints=400, minage=0, maxage=100):
+        self.nvert = nvert
         self.ngrad = ngrad
         self.ntimepoints = ntimepoints
         
         if directory is not None:
-            self.array = np.load(directory+'grads_gamm.npy')
-            p = directory+'rsq.npy'
+            self.array = np.load(directory + 'grads_gamm.npy')
+            p = directory + 'rsq.npy'
             if os.path.isfile(p):
                 self.rsquared = np.load(p)
-            p = directory+'std_err.npy'
+            p = directory + 'std_err.npy'
             if os.path.isfile(p):
                 self.std_err = np.load(p)
             
         if arraypath is not None:
             self.array = np.load(arraypath)
-        if csvlist is not None: 
+
+        if g1_path is not None:
+            g2_path = g1_path.replace('g1', 'g2')
+            g3_path = g1_path.replace('g1', 'g3')
+            csvlist = [g1_path, g2_path, g3_path]
             
-            self.array = np.zeros((ntimepoints,nvert,ngrad))
-            for i,p in enumerate(csvlist):
+            self.array = np.zeros((ntimepoints, nvert, ngrad))
+            for i, p in enumerate(csvlist):
                 df = pd.read_csv(p)
-                for j in range (nvert):
-                    self.array[:,j,i] = df[f'V{j+1}']
+                for j in range(nvert):
+                    self.array[:, j, i] = df[f'V{j+1}']
         
-        self.ages = np.arange(ntimepoints)/(ntimepoints/(maxage-minage))
+        self.ages = np.arange(ntimepoints) / (ntimepoints / (maxage - minage))
         
         self.zarray = np.zeros(self.array.shape)
         
-        for i in range (ntimepoints):
-            for j in range (ngrad):
-                self.zarray[i,:,j] = uts.zscore_surface_metric(self.array[i,:,j])
+        for i in range(ntimepoints):
+            for j in range(ngrad):
+                self.zarray[i, :, j] = uts.zscore_surface_metric(self.array[i, :, j])
     
     def load_rsq(self,pathlist):
         rsq=np.zeros((self.nvert,3))
@@ -120,13 +125,13 @@ class FittedGradient:
         granges = np.zeros((self.array.shape[0],self.array.shape[2]))
         for i in range (self.ntimepoints):
             for j in range (self.ngrad):
-                granges[i,j] = np.max(self.array[i,:,j])-np.min(self.array[i,:,j])
+                granges[i,j] = np.percentile(self.array[i,:,j],95)-np.percentile(self.array[i,:,j],5)
         self.granges = granges
     def get_vars(self):
         gvars = np.zeros((self.array.shape[0],self.array.shape[2]))
         for i in range (self.ntimepoints):
             for j in range (self.ngrad):
-                gvars[i,j] = np.var(self.array[i,:,j])
+                gvars[i,j] = ss.median_abs_deviation(self.array[i,:,j])
         self.gvars = gvars
         
     def get_dispersion(self):

@@ -52,6 +52,7 @@ transformData[1:Ns,3]<-factor(t(Cohort_ID))
 Yhat<-array(0,dim=c(Na,Nv))
 Se<-array(0,dim=c(Na,Nv))
 Rsq<-array(0,dim=c(Nv))
+cohort_effects_list <- list()
 # ---- Vertex-wise GAMM fitting ----- #
 
 #Nv=10 ###comment
@@ -67,7 +68,16 @@ for (k in 1:Nv){
   Yhat[1:Na,k]=p$fit
   Se[1:Na,k]=p$se.fit
   Rsq[k]=summary(gamm_mod$gam)$r.sq
+  # Extract random effects
+  random_effects <- ranef(gamm_mod$mer)
+  
+  # Extract and save cohort random effects
+  cohort_effects <- random_effects$Cohort_ID
+  cohort_effects_list[[paste("V", k)]] <- cohort_effects
+  
 }
+cohort_effects_df <- do.call(cbind, cohort_effects_list)
+write.csv(cohort_effects_df, paste(csv_file_name,"_cohort_effect", ".csv", sep=""))
 write.csv(Yhat, Yhat_file_name)
 write.csv(Se, Se_file_name)
 write.csv(Rsq, Rsq_file_name)

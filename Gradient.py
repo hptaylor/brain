@@ -74,12 +74,14 @@ class Gradient:
     def grange(self):
         gr = []
         for i in range(self.ngrad):
-            gr.append(np.max(self.garray[:,i])-np.min(self.garray[:,i]))
+            #gr.append(np.max(self.garray[:,i])-np.min(self.garray[:,i]))
+            gr.append(np.percentile(self.garray[:,i],95)-np.percentile(self.garray[:,i],5))
         return np.array(gr)
     
     @property
     def gvar(self):
-        gv = [np.var(self.garray[:,i]) for i in range (self.ngrad)]
+        #gv = [np.var(self.garray[:,i]) for i in range (self.ngrad)]
+        gv = [ss.median_abs_deviation(self.garray[:,i]) for i in range (self.ngrad)]
         return np.array(gv)
     
     @property

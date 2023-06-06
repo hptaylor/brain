@@ -17,7 +17,7 @@ import fileops as fps
 import plotting as pltg
 import clustering as clst 
 import metrics as mts
-import GammFit 
+import GammFit as gf
 
 class GradientSet:
     
@@ -566,7 +566,7 @@ class GradientSet:
     def fit_gamm_metric(self,metric,directory,name,cohort=True,ndim=3,k=10):
         self.save_metric_to_dataframe(metric,directory,name,cohort,ndim)
         os.system(f'Rscript fit_metric_GAMM.R {directory} {name} {k}')
-        return GammFit.GammFit(directory,name,ndim)
+        return gf.GammFit(directory,name,ndim)
     
     def plot_eigenvalues(self,lower_age = None, upper_age = None,num_evals=None,exp_ratio=False,range_ratio=False,cmap = 'plasma'):
         if lower_age is not None:

@@ -96,6 +96,18 @@ def polynomial_fit_plot(metric,deg,lab=None,col=None):
 #         add_logage_axis(yaxis=yaxis,labs=labels,legend=legend)
 #     return 
 # =============================================================================
+def apply_cohort_shift(data,cohort_ids,shifts):
+    shifted_data = np.zeros(data.shape)
+    for i in range(len(shifts)):
+        inds = np.where(cohort_ids==i)
+        shifted_data[inds] = data[inds] - shifts[i]
+    return shifted_data 
+def load_cohort_effect(path):
+    cohort_effect = pd.read_csv(path)
+    cohort_effect = cohort_effect.to_numpy()
+    cohort_effect = cohort_effect[:,1:]
+    return cohort_effect 
+
 def load_gamm_fit(path,ndim=3):
     df=pd.read_csv(path)
     metric = np.zeros((400,ndim))

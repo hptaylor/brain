@@ -122,8 +122,11 @@ def plot_metric_vs_age_log_scale_lifespan(ages, metric,metriclabel = 'metric'):
 def plot_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
     fig, ax = plt.subplots()
     ax.scatter(np.log2(ages + 1), metric, s= 0.5)
-    ticks = ax.get_xticks()
-    ax.set_xticklabels([f'{round(2**i - 1)}' for i in ticks])
+    tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]  # Desired x-axis labels
+    tick_positions = np.log2(np.array(tick_labels) + 1)  # Corresponding x-axis positions
+
+    ax.set_xticks(tick_positions)
+    ax.set_xticklabels(tick_labels)
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metriclabel)
     plt.show()
@@ -131,8 +134,11 @@ def plot_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
 def plot_line_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
     fig, ax = plt.subplots()
     ax.plot(np.log2(ages + 1), metric)
-    ticks = ax.get_xticks()
-    ax.set_xticklabels([f'{round(2**i - 1)}' for i in ticks])
+    tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]  # Desired x-axis labels
+    tick_positions = np.log2(np.array(tick_labels) + 1)  # Corresponding x-axis positions
+
+    ax.set_xticks(tick_positions)
+    ax.set_xticklabels(tick_labels)
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metriclabel)
     plt.show()
@@ -141,13 +147,36 @@ def plot_lines_metric_vs_age_log(ages, metric, metriclabel = 'metric',keys=['SA'
     fig, ax = plt.subplots()
     for i in range(metric.shape[1]):
         ax.plot(np.log2(ages + 1), metric[:,i],label=keys[i])
-    ticks = ax.get_xticks()
-    ax.set_xticklabels([f'{round(2**i - 1)}' for i in ticks])
+    tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]  # Desired x-axis labels
+    tick_positions = np.log2(np.array(tick_labels) + 1)  # Corresponding x-axis positions
+
+    ax.set_xticks(tick_positions)
+    ax.set_xticklabels(tick_labels)
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metriclabel)
     ax.legend()
     plt.show()
 
+def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labels=['SA','VS','MR']):
+    fig, ax = plt.subplots()
+    for i in range(fitmetrics.shape[1]):
+        ax.plot(np.log2(fitages + 1), fitmetrics[:,i],label=metric_labels[i])
+        
+        ax.fill_between(np.log2(fitages+1), fitmetrics[:,i]-std_error[:,i]*1.96, fitmetrics[:,i]+std_error[:,i]*1.96,  alpha=0.2)
+
+    # Specify the tick positions and labels
+    tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]  # Desired x-axis labels
+    tick_positions = np.log2(np.array(tick_labels) + 1)  # Corresponding x-axis positions
+
+    ax.set_xticks(tick_positions)
+    ax.set_xticklabels(tick_labels)
+
+    ax.set_xlabel('age (years)')
+    ax.set_ylabel(metric_name)
+    ax.legend()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.show()
 def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_error=None):
     """
     This function plots individual metric data along with fitted metric values over age. 
@@ -169,14 +198,21 @@ def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_
     fig, ax = plt.subplots()
     ax.plot(np.log2(fitages + 1), fitmetric, c='blue')
     if std_error is not None:
-        ax.fill_between(np.log2(fitages+1), fitmetric-std_error, fitmetric+std_error, color='blue', alpha=0.2)
+        ax.fill_between(np.log2(fitages+1), fitmetric-std_error*1.96, fitmetric+std_error*1.96, color='blue', alpha=0.2)
     ax.scatter(np.log2(indages + 1), indmetric, s=0.5, c='black')
-    ticks = ax.get_xticks()
-    ax.set_xticklabels([f'{round(2**i - 1)}' for i in ticks])
+
+    # Specify the tick positions and labels
+    tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]  # Desired x-axis labels
+    tick_positions = np.log2(np.array(tick_labels) + 1)  # Corresponding x-axis positions
+
+    ax.set_xticks(tick_positions)
+    ax.set_xticklabels(tick_labels)
+
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metriclabel)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     plt.show()
-    
 from plotnine import ggplot, aes, geom_point, scale_x_continuous, ggtitle, geom_line, scale_color_gradientn
 from mizani.transforms import trans
     
