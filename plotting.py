@@ -14,6 +14,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np 
+from cycler import cycler
+import matplotlib.colors as mcolors
 
 scrpath='/Users/patricktaylor/Documents/lifespan_analysis/scratch/'
 axisnames=['SA','VS','MR']
@@ -115,6 +117,8 @@ def plot_metric_vs_age_log_scale_lifespan(ages, metric,metriclabel = 'metric'):
                    fontsize=18)
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metriclabel)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     plt.show()
     return 
 
@@ -129,6 +133,8 @@ def plot_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
     ax.set_xticklabels(tick_labels)
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metriclabel)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     plt.show()
     
 def plot_line_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
@@ -141,10 +147,17 @@ def plot_line_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
     ax.set_xticklabels(tick_labels)
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metriclabel)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     plt.show()
 
 def plot_lines_metric_vs_age_log(ages, metric, metriclabel = 'metric',keys=['SA','VS','MR']):
     fig, ax = plt.subplots()
+    cmap = mcolors.ListedColormap(plt.get_cmap('tab20').colors)
+    # Define the color cycle based on tab20 colormap
+    color_cycle = cycler(color=cmap.colors)
+    # Update the default rc settings
+    plt.rcParams['axes.prop_cycle'] = color_cycle
     for i in range(metric.shape[1]):
         ax.plot(np.log2(ages + 1), metric[:,i],label=keys[i])
     tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]  # Desired x-axis labels
@@ -154,16 +167,24 @@ def plot_lines_metric_vs_age_log(ages, metric, metriclabel = 'metric',keys=['SA'
     ax.set_xticklabels(tick_labels)
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metriclabel)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     ax.legend()
     plt.show()
 
-def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labels=['SA','VS','MR']):
+def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labels=['SA','VS','MR'],annotate_max=True):
     fig, ax = plt.subplots()
     for i in range(fitmetrics.shape[1]):
         ax.plot(np.log2(fitages + 1), fitmetrics[:,i],label=metric_labels[i])
         
         ax.fill_between(np.log2(fitages+1), fitmetrics[:,i]-std_error[:,i]*1.96, fitmetrics[:,i]+std_error[:,i]*1.96,  alpha=0.2)
-
+        if annotate_max:
+            if i!=1:
+                x = np.log2(fitages + 1)
+                y = fitmetrics[:,i]
+                xpos = np.where(y == max(y))
+                xmax = x[xpos]
+                ax.annotate(f'{fitages[xpos][0]} y', xy = (xmax,max(y)),xytext = (xmax,max(y)+0.05), arrowprops=dict(arrowstyle='wedge',facecolor='red'),fontsize=18,color = 'red')
     # Specify the tick positions and labels
     tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]  # Desired x-axis labels
     tick_positions = np.log2(np.array(tick_labels) + 1)  # Corresponding x-axis positions
@@ -177,7 +198,7 @@ def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labe
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     plt.show()
-def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_error=None):
+def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_error=None,annotate_max=True):
     """
     This function plots individual metric data along with fitted metric values over age. 
     The x-axis values (age) are transformed using log2.
@@ -212,6 +233,12 @@ def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_
     ax.set_ylabel(metriclabel)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+    if annotate_max:
+        x = np.log2(fitages + 1)
+        y = fitmetric
+        xpos = np.where(y == max(y))
+        xmax = x[xpos]
+        ax.annotate(f'{fitages[xpos][0]} y', xy = (xmax,max(y)),xytext = (xmax,max(y)+0.6), arrowprops=dict(facecolor='red', shrink=0.05),fontsize=18,color = 'red')
     plt.show()
 from plotnine import ggplot, aes, geom_point, scale_x_continuous, ggtitle, geom_line, scale_color_gradientn
 from mizani.transforms import trans

@@ -108,6 +108,26 @@ def load_cohort_effect(path):
     cohort_effect = cohort_effect[:,1:]
     return cohort_effect 
 
+def load_cohort_effect_grads(g1_path):
+    g2_path = g1_path.replace('g1', 'g2')
+    g3_path = g1_path.replace('g1', 'g3')
+    pathlist = [g1_path, g2_path, g3_path]
+    cohort_effect = np.zeros((4,3,20484))
+    for i,p in enumerate(pathlist):
+        c = load_cohort_effect(p)
+        cohort_effect[:,i] = c
+    return cohort_effect
+
+def apply_cohort_shift_grads(gmat,cohort_ids,shifts):
+    shifted_data = np.zeros((gmat.shape[0],gmat.shape[1],3))
+    
+    for i in range(len(shifts)):
+        inds = np.where(cohort_ids==i)[0]
+        shifted_data[inds] = gmat[inds] - shifts[i].T
+        
+            
+    return shifted_data
+
 def load_gamm_fit(path,ndim=3):
     df=pd.read_csv(path)
     metric = np.zeros((400,ndim))

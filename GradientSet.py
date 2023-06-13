@@ -121,7 +121,7 @@ class GradientSet:
 
     def __str__(self):
         num_gradients = len(self.dtable['grads'])
-        return f"GradientSet with {num_gradients} gradients (aligned: {self.aligned})"
+        return f"GradientSet with {num_gradients} gradient sets each with {self.ngrad} gradients (aligned: {self.aligned})"
     
     @property
     def length(self):
@@ -137,6 +137,9 @@ class GradientSet:
     def gids(self):
         return self.dtable['gid'].to_numpy()
     
+    @property
+    def ngrad(self):
+        return self.dtable['grads'][0].ngrad
     @property
     def sids(self):
         gids = self.gids
@@ -222,6 +225,20 @@ class GradientSet:
         else:
             return disps 
     
+    def get_dispersions_parc(self,parc,ndim=3):
+        disps = np.zeros((self.length,np.unique(parc).shape[0]))
+        for i, g in enumerate(self.dtable['grads']):
+            disps[i] = g.get_dispersion_parc(parc,ndim)
+        return disps 
+    def get_mean_value_parc(self,parc):
+        vals = np.zeros((self.length,np.unique(parc).shape[0],3))
+        for z in range(np.unique(parc).shape[0]):
+            inds = np.where(parc == z)[0]
+            for i, g in enumerate(self.dtable['grads']):
+                for j in range (3):
+                    vals[i,z,j] = np.mean(g.garray[inds,j])
+        return vals
+                
         
     def get_ranges(self):
         granges = np.zeros((self.length,self.g(0,False).shape[1]))
@@ -460,7 +477,7 @@ class GradientSet:
             return new_gs
     
     def get_cos_sim_w_template(self):
-        cossims = np.zeros((self.length,self.template_grads.shape[1]))
+        cossims = np.zeros((self.length,self.ngrad))
         for i,g in enumerate(self.dtable['grads']):
             for j in range (cossims.shape[1]):
                 cossims[i,j] = uts.cos_norm(g.garray[:,j],self.template_grads[:,j])
@@ -563,6 +580,20 @@ class GradientSet:
             
             # Save the DataFrame to a CSV file
         dataframe.to_csv(directory + f'{name}.csv', index=False)
+    def apply_cohort_shift(self,g1_path,add_column = False):
+        cohort_shift = uts.load_cohort_effect_grads(g1_path)
+        shifted_gmat = uts.apply_cohort_shift_grads(self.grad_arr_list()[:,:,:cohort_shift.shape[1]],self.dtable['cohort_id'].to_numpy(),cohort_shift)
+        
+        if add_column:
+            self.dtable['shifted_grads'] = shifted_gmat
+        else:
+            for i,g in enumerate(self.dtable['grads']):
+                
+                g.garray = shifted_gmat[i]
+                
+                
+            self.shifted = True
+            
     def fit_gamm_metric(self,metric,directory,name,cohort=True,ndim=3,k=10):
         self.save_metric_to_dataframe(metric,directory,name,cohort,ndim)
         os.system(f'Rscript fit_metric_GAMM.R {directory} {name} {k}')

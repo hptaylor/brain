@@ -334,6 +334,13 @@ class Gradient:
             return disp
                 
     
+    def get_dispersion_parc(self,parc,ndim=3):
+        disp = []
+        for i in range (np.unique(parc).shape[0]):
+            inds = np.where(parc==i)[0]
+            d = met.dispersion_centroid(self.garray[inds,:ndim])
+            disp.append(d)
+        return np.array(disp)
     
         
     def get_neighborhoods(self, num_neighbors = 100):
