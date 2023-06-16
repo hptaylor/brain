@@ -68,8 +68,12 @@ class GammFit:
                 pltg.plot_fitted_metric(self.indages, self.metric[:, i], self.ages, self.fit[:, i], f'{self.name} {i+1}', self.std_error[:, i])
         else:
             for i in range(self.ndim):
+                if i == 1:
+                    mark_max = False
+                else:
+                    mark_max = True 
                 shifted_metric = uts.apply_cohort_shift(self.metric[:, i], self.cohort_id, self.cohort_effect[:, i])
-                pltg.plot_fitted_metric(self.indages, shifted_metric, self.ages, self.fit[:, i], f'{self.name} {i+1}', self.std_error[:, i])
+                pltg.plot_fitted_metric(self.indages, shifted_metric, self.ages, self.fit[:, i], f'{self.name} {i+1}', self.std_error[:, i],annotate_max=mark_max)
 
     def plot_fits(self):
         """

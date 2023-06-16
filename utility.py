@@ -221,6 +221,50 @@ def hist(data, bins=100,xtitle='values',ytitle='count',title='histogram',saveout
         
     return 
 
+def normalize_zero_to_one(garray):
+        normgrads=np.zeros(garray.shape)
+        for i in range (3):
+            normgrads[:,i]=((garray[:,i]-np.min(garray[:,i]))
+                            /(np.max(garray[:,i])-np.min(garray[:,i])))
+        return normgrads
+    
+def get_3d_cmap(garray, a = np.array([0,1.2,0.4]),b = np.array([-0.2,-0.2,0]),
+                    c = np.array([1.2,0.5,0])):
+        a = 1.1*a
+        b = 1.1*b
+        c = 1.1*c
+        
+        normgrads = normalize_zero_to_one(garray)
+        normgrads = normgrads[:,:3]
+        colors = np.zeros((garray.shape[0],3))
+        
+        a = np.repeat(a.reshape((1,3)),garray.shape[0],axis = 0)
+        b = np.repeat(b.reshape((1,3)),garray.shape[0],axis = 0)
+        c = np.repeat(c.reshape((1,3)),garray.shape[0],axis = 0)
+        
+        abc = np.linalg.norm(np.cross(c - a, b - a), axis = 1)
+        cap = np.linalg.norm(np.cross(c - normgrads, a - normgrads), axis = 1)
+        abp = np.linalg.norm(np.cross(a - normgrads, b - normgrads), axis = 1)
+        bcp = np.linalg.norm(np.cross(c - normgrads, b - normgrads), axis = 1)
+        
+        u=np.divide(cap,abc)
+        v=np.divide(abp,abc)
+        w=np.divide(bcp,abc)
+        
+        colors[:,0] = v
+        colors[:,1] = u
+        colors[:,2] = w
+        
+        return colors
+
+def get_parcellated_cmap(parc,colors):
+    pcolors = np.zeros(colors.shape)
+    for i in np.unique(parc):
+        inds = np.where(parc == i)[0]
+        pcolors[inds] = np.mean(colors[inds],axis = 0)
+    return pcolors 
+
+
 def check_symmetry(a):
     sym_err = a - a.T
     return np.all(np.abs(sym_err.data) < 1e-10)

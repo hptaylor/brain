@@ -123,14 +123,17 @@ class FittedGradient:
         else:
             return g.garray 
     
-    def save_vtk_series(self,directory = '/Users/patricktaylor/Documents/lifespan_analysis/scratch/timeseries/',
+    def save_vtk_series_emb(self,directory = '/Users/patricktaylor/Documents/lifespan_analysis/scratch/timeseries/',
                         fname = '%s_emb.vtk',feature = None):
         si = np.load('/Users/patricktaylor/Documents/lifespan_analysis/misc/si.npy')
         if feature is None:
             feature = self.array
         for i in range (self.ntimepoints):
-            rw.save_eigenvector(directory+fname % i, self.array[i],si,self.array[i])
-            
+            rw.save_eigenvector(directory+fname % i, self.array[i],si,feature)
+    
+    
+        
+        
     def plot_grad_val_vs_age(self,vertind,gradind=None, zscore = True, 
                              sub_grads = None):
         
@@ -208,4 +211,9 @@ class FittedGradient:
             else:
                 d = 0
             pltg.plot_lines_metric_vs_age_log(self.ages,vals[:,:,i]-d,f'avg {axes[i]} val deviation',network_names)
-        
+    
+    def get_3d_cmap(self):
+        colors = np.zeros(self.zarray.shape)
+        for i in range (self.ntimepoints):
+            colors[i] = uts.get_3d_cmap(self.zarray[i])
+        return colors 

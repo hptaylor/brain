@@ -147,15 +147,108 @@ def plot_grad_list_on_surf(gradlist,whichgrad,start,stop,surflist=None,savelist=
             
     return 
 
+def save_surface(filename, points, edges, labels=None, features=None, feature_names='feature', colors=None,to_hems=True):
+    if to_hems:
+        p = filename.rsplit('/',1)
+        lhpath = p[0] + '/lh_' + p[1]
+        rhpath = p[0] + '/rh_' + p[1]
+        
+        h = int(len(points)/2)
+        lsc = sc[:h]
+        rsc = sc[h:]
+        lsi = si[:int(len(si)/2)]
+        rsi = si[int(len(si)/2):] - len(lsc)
+        if labels is not None:
+            lhlabels = labels[:h]
+            rhlabels = labels[h:]
+        else:
+            lhlabels = None
+            rhlabels = None
+        if features is not None:
+            lfeatures = features[:h]
+            rfeatures = features[h:]
+        else:
+            lfeatures = None
+            rfeatures = None
+        if colors is not None:
+            lcol = colors[:h]
+            rcol = colors[h:]
+        else:
+            lcol=None
+            rcol = None
+            
+        save_surface(lhpath,lsc,lsi,lhlabels,lfeatures,feature_names,lcol,False)
+        save_surface(rhpath,rsc,rsi,rhlabels,rfeatures,feature_names,rcol,False)
+        
+        return 
+    # Create a polydata object
+    mesh = vtk.vtkPolyData()
 
-def save_surface(filename,points,edges,feature=None,colors=None):
-    mesh = tvtk.PolyData(points=points, polys=edges)
-    if feature is not None:
-        mesh.point_data.scalars=feature
+    # Set the points
+    points_vtk = vtk.vtkPoints()
+    for point in points:
+        points_vtk.InsertNextPoint(point)
+    mesh.SetPoints(points_vtk)
+
+    # Set the polygons
+    polys = vtk.vtkCellArray()
+    for edge in edges:
+        polygon = vtk.vtkPolygon()
+        polygon.GetPointIds().SetNumberOfIds(len(edge))
+        for i, vertex in enumerate(edge):
+            polygon.GetPointIds().SetId(i, vertex)
+        polys.InsertNextCell(polygon)
+    mesh.SetPolys(polys)
+
+    # Set the colors if available
     if colors is not None:
-        mesh.point_data.vectors=colors
-    write_data(mesh, filename)
+        colors_vtk = vtk.vtkDoubleArray()
+        colors_vtk.SetNumberOfComponents(3)
+        colors_vtk.SetName('color')
+        for color in colors:
+            colors_vtk.InsertNextTuple(color)
+        mesh.GetPointData().AddArray(colors_vtk)
+
+    # Set the labels if available
+    if labels is not None:
+        labels_vtk = vtk.vtkStringArray()
+        labels_vtk.SetName('label')
+        for label in labels:
+            labels_vtk.InsertNextValue(label)
+        mesh.GetPointData().AddArray(labels_vtk)
+
+    # Set the features if available
+    if features is not None:
+        if isinstance(feature_names, str):
+            feature_names = [feature_names]
+        if len(features.shape) == 1:  # if only one feature, expand dimension
+            features = np.expand_dims(features, axis=0)
+        for f, name in zip(features, feature_names):
+            feature_vtk = vtk.vtkDoubleArray()
+            feature_vtk.SetName(name)
+            for value in f:
+                feature_vtk.InsertNextValue(value)
+            mesh.GetPointData().AddArray(feature_vtk)
+
+    # Write to file
+    writer = vtk.vtkPolyDataWriter()
+    writer.SetFileName(filename)
+    writer.SetInputData(mesh)
+    writer.Write()
+
     return
+
+# =============================================================================
+# 
+# def save_surface(filename,points,edges,feature=None,colors=None):
+#     mesh = tvtk.PolyData(points=points, polys=edges)
+#     if feature is not None:
+#         mesh.point_data.scalars=feature
+#     if colors is not None:
+#         mesh.point_data.vectors=colors
+#     write_data(mesh, filename)
+#     return
+# =============================================================================
 
 def save_points(filename,points,feature=None,colors=None):
     vpoints = vtk.vtkPoints()
@@ -561,6 +654,91 @@ def read_gifti_feature_both_hem(lfname,rfname):
     featurevec=gifti_to_scalar(L,R)
     return featurevec
 
+def read_schaefer400_17net_parc(lhpath):
+    
+    rhpath = lhpath.replace('lh', 'rh')
+    
+    lhg = nib.load(lhpath)
+    rhg = nib.load(rhpath)
+    
+    lhparc = gifti2scal(lhg)[:,0]
+    rhparc = gifti2scal(rhg)[:,0]
+    
+    reg_parcs = [lhparc,rhparc]
+    
+    lhdict = lhg.labeltable.get_labels_as_dict()
+    rhdict = rhg.labeltable.get_labels_as_dict()
+    
+    lhregions = []
+    rhregions = []
+    
+    lhnetworks = []
+    rhnetworks = []
+    
+    lhdict = [lhdict[i][14:] for i in range(1,201)]
+    
+    rhdict =  [rhdict[i][14:] for i in range(1,201)]
+    
+    lhdict = [[' medial wall']]+[lhdict[i].rsplit('_') for i in range (200)]
+    rhdict = [[' medial wall']] + [rhdict[i].rsplit('_') for i in range (200)]
+    
+    lhnetworks = [lhdict[i][0] for i in range (201) ]
+    rhnetworks = [rhdict[i][0] for i in range (201) ]
+    
+    for i in range (201):
+        if len(lhdict[i]) == 3:
+            lhregname = 'lh_'+lhdict[i][1] + '_' + lhdict[i][2]
+        elif len(lhdict[i]) == 2:
+            lhregname = 'lh_'+lhdict[i][0] + '_' + lhdict[i][1]
+        elif len(lhdict[i]) == 1:
+            lhregname = 'lh_' +lhdict[i][0]
+        if len(rhdict[i]) == 3:
+            rhregname = 'rh_'+rhdict[i][1] + '_' + rhdict[i][2]
+        elif len(rhdict[i]) == 2:
+            rhregname = 'rh_'+rhdict[i][0] + '_' + rhdict[i][1]
+        elif len(rhdict[i]) == 1:
+            rhregname = 'rh_' +rhdict[i][0]
+        lhregions.append(lhregname)
+        rhregions.append(rhregname)
+    region_names = np.array(lhregions+rhregions)
+    
+    lhnetworks = np.array(lhnetworks)
+    rhnetworks = np.array(rhnetworks)
+    network_assignments = [lhnetworks,rhnetworks]
+    
+    networknames = np.unique(lhnetworks)
+    
+    lhnetparc = np.zeros(len(lhparc))
+    rhnetparc = np.zeros(len(rhparc))
+    
+    for z,parc in enumerate([lhnetparc,rhnetparc]):
+        
+        for i,name in enumerate(networknames):
+            
+            parcinds = np.where(network_assignments[z] == name)[0]
+            
+            for pnum in parcinds:
+                vertinds = np.where(reg_parcs[z] == pnum)[0]
+                parc[vertinds] = i
+    netparc = np.concatenate((lhnetparc,rhnetparc))
+    netparclabs = np.empty(netparc.shape,dtype='<U12')
+    for i in range (len(networknames)):
+        inds = np.where(netparc == i)[0]
+        netparclabs[inds] = networknames[i]
+    regparclabs = np.empty(netparc.shape,dtype='<U12')
+    regparc = np.concatenate((lhparc,rhparc+201))
+    for i in range (len(region_names)):
+        inds = np.where(regparc == i)[0]
+        regparclabs[inds] = region_names[i]
+    parc_dict= {}
+    
+    parc_dict['parc'] = regparc
+    parc_dict['region_labels'] = regparclabs
+    parc_dict['region_names'] = region_names
+    parc_dict['net_parc'] = netparc
+    parc_dict['net_labels'] = netparclabs
+    parc_dict['net_names'] = networknames
+    
 def normalize_ts(ts):
     ts=ts.T
     nts=(ts - np.mean(ts, axis=0)) / np.std(ts, axis=0)
