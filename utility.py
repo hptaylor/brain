@@ -221,6 +221,7 @@ def hist(data, bins=100,xtitle='values',ytitle='count',title='histogram',saveout
         
     return 
 
+
 def normalize_zero_to_one(garray):
         normgrads=np.zeros(garray.shape)
         for i in range (3):
@@ -230,6 +231,8 @@ def normalize_zero_to_one(garray):
     
 def get_3d_cmap(garray, a = np.array([0,1.2,0.4]),b = np.array([-0.2,-0.2,0]),
                     c = np.array([1.2,0.5,0])):
+        #a = np.array([0,1.2,0.4]),b = np.array([-0.2,-0.2,0]),c = np.array([1.2,0.5,0])
+                    
         a = 1.1*a
         b = 1.1*b
         c = 1.1*c
@@ -257,12 +260,18 @@ def get_3d_cmap(garray, a = np.array([0,1.2,0.4]),b = np.array([-0.2,-0.2,0]),
         
         return colors
 
-def get_parcellated_cmap(parc,colors):
+def get_parcellated_cmap(parc,colors,vertex_wise = True):
     pcolors = np.zeros(colors.shape)
+    colorlist = np.zeros((len(set(parc)),3))
+    
     for i in np.unique(parc):
         inds = np.where(parc == i)[0]
         pcolors[inds] = np.mean(colors[inds],axis = 0)
-    return pcolors 
+        colorlist[int(i)] = np.mean(colors[inds],axis = 0)
+    if vertex_wise:
+        return pcolors
+    else:
+        return colorlist 
 
 
 def check_symmetry(a):
@@ -372,7 +381,58 @@ def parc_agglo_save(sc,si,vecs=None,nclust=None,save=True,savevecs=None,lab=None
         return lab
     else:
         return 
+def top_k_indices(arr, k):
+    # use argpartition to find indices of top k values
+    return np.argpartition(arr, -k)[-k:]
 
+def bottom_k_indices(arr, k):
+    # use argpartition to find indices of bottom k values
+    return np.argpartition(arr, k)[:k]
+
+def get_average_std_errors(ses):
+    
+    sum_of_variances = 0
+    for se in ses:
+        var = se**2
+        sum_of_variances += var
+    
+    return np.sqrt(sum_of_variances/len(ses))
+
+def gradient_pole_trajectories(gradlist,percent,ref_grads,std_errors=None,return_range=True):
+    result = np.zeros((gradlist.shape[0],gradlist.shape[2],2))
+    ##topresult = np.zeros((gradlist.shape[0],gradlist.shape[2]))
+    #bottomresult = np.zeros((gradlist.shape[0],gradlist.shape[2]))
+    keep_num = int(gradlist.shape[1] * percent/100)
+    
+    avg_std_errors = np.zeros(result.shape)
+    
+    for i in range (gradlist.shape[2]):
+        
+        topinds = top_k_indices(ref_grads[:,i],keep_num)
+        bottominds = bottom_k_indices(ref_grads[:,i],keep_num)
+        
+        for j in range (len(gradlist)):
+            if std_errors is not None:
+                avg_std_errors[j,i,0] = get_average_std_errors(std_errors[j,topinds,i])
+                avg_std_errors[j,i,1] = get_average_std_errors(std_errors[j,bottominds,i])
+            result[j,i,0] = np.mean(gradlist[j,topinds,i])
+            result[j,i,1] = np.mean(gradlist[j,bottominds,i])
+            #topresult[j,i] = np.mean(gradlist[j,topinds,i])
+            #bottomresult[j,i] = np.mean(gradlist[j,bottominds,i])
+    if not return_range:
+        return result
+    else:
+        if std_errors is not None:
+            range_std_error = np.zeros((result.shape[0],result.shape[1]))
+            for i in range (result.shape[0]):
+                for j in range (result.shape[1]):
+                    range_std_error[i,j] = get_average_std_errors(avg_std_errors[i,j])
+            
+            return result[:,:,0] - result[:,:,1], range_std_error
+        else:
+            return result[:,:,0] - result[:,:,1]
+            
+    
 from sklearn import cluster as clst 
 
 def spectral_cluster(vecs,nclust):

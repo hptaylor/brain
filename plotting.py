@@ -17,10 +17,10 @@ import numpy as np
 from cycler import cycler
 import matplotlib.colors as mcolors
 
-scrpath='/Users/patricktaylor/Documents/lifespan_analysis/scratch/'
+scrpath='/Users/patricktaylor/lifespan_analysis/scratch/'
 axisnames=['SA','VS','MR']
-lhp = '/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii' 
-rhp = '/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii' 
+lhp = '/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii' 
+rhp = '/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii' 
         
 
 
@@ -81,6 +81,8 @@ def plot_eigenvalues_by_age(eigenvalues, ages,num_evals = None, ylabel = 'Eigenv
             ax.plot(eigenvalues[i][:num_evals], 'o', color=colormap.to_rgba(ages[i]),ms = 0.3)
     ax.set_xlabel('gradient index')
     ax.set_ylabel(ylabel)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     cbar = plt.colorbar(colormap)
     cbar.ax.set_ylabel('Age')
     plt.show()
@@ -151,18 +153,28 @@ def plot_line_metric_vs_age_log(ages, metric, metriclabel = 'metric'):
     ax.spines['right'].set_visible(False)
     plt.show()
 
-def plot_lines_metric_vs_age_log(ages, metric, metriclabel = 'metric',keys=['SA','VS','MR'],subtract_mean = False):
+def plot_lines_metric_vs_age_log(ages, metric, metriclabel = 'metric',keys=['SA','VS','MR'],subtract_mean = False,cmap=None,legend=True,ci=None):
     fig, ax = plt.subplots()
-    cmap = mcolors.ListedColormap(plt.get_cmap('tab20').colors)
-    # Define the color cycle based on tab20 colormap
-    color_cycle = cycler(color=cmap.colors)
-    # Update the default rc settings
-    plt.rcParams['axes.prop_cycle'] = color_cycle
-    for i in range(metric.shape[1]):
-        if subtract_mean:
-            ax.plot(np.log2(ages + 1), metric[:,i] - np.mean(metric[:,i]),label=keys[i])
+    if cmap is None:
+        if metric.shape[1]>10:
+            cmap = mcolors.ListedColormap(plt.get_cmap('tab20').colors)
         else:
-            ax.plot(np.log2(ages + 1), metric[:,i] ,label=keys[i])
+            cmap = mcolors.ListedColormap(plt.get_cmap('tab10').colors)
+        # Define the color cycle based on tab20 colormap
+        color_cycle = cycler(color=cmap.colors)
+        # Update the default rc settings
+        plt.rcParams['axes.prop_cycle'] = color_cycle
+        for i in range(metric.shape[1]):
+            if subtract_mean:
+                ax.plot(np.log2(ages + 1), metric[:,i] - np.mean(metric[:,i]),label=keys[i])
+            else:
+                ax.plot(np.log2(ages + 1), metric[:,i] ,label=keys[i])
+    else:
+        for i in range(metric.shape[1]):
+            if subtract_mean:
+                ax.plot(np.log2(ages + 1), metric[:,i] - np.mean(metric[:,i]),label=keys[i],color = cmap(i))
+            else:
+                ax.plot(np.log2(ages + 1), metric[:,i] ,label=keys[i],color = cmap(i))
     tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]  # Desired x-axis labels
     tick_positions = np.log2(np.array(tick_labels) + 1)  # Corresponding x-axis positions
 
@@ -172,9 +184,24 @@ def plot_lines_metric_vs_age_log(ages, metric, metriclabel = 'metric',keys=['SA'
     ax.set_ylabel(metriclabel)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.legend()
+    if legend:  
+        ax.legend()
     plt.show()
 
+def plot_lines_metric_vs_age_from_dict(fg,metric,name_list,net_names,metric_label='metric',subtract_mean=False,cmap=None):
+    #inds = np.where(np.isin(name_list,np.sort(np.array(net_names))))[0]
+    inds = [np.where(name_list == s)[0][0] for s in net_names]
+    if cmap == 'yeo7':
+        cmap = ListedColormap(yeo7_colors[inds])
+    elif cmap == 'yeo17':
+        cmap = ListedColormap(yeo17_colors[inds])
+    if len(metric.shape)>2: 
+        for i in range (metric.shape[2]):
+            plot_lines_metric_vs_age_log(fg.ages,metric[:,inds,i],metric_label,net_names,subtract_mean,cmap,legend=True)
+    else:
+        plot_lines_metric_vs_age_log(fg.ages,metric[:,inds],metric_label,net_names,subtract_mean,cmap,legend=True)
+        
+        
 def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labels=['SA','VS','MR'],annotate_max=True):
     fig, ax = plt.subplots()
     cmap = mcolors.ListedColormap(plt.get_cmap('tab10').colors)
@@ -206,7 +233,7 @@ def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labe
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     plt.show()
-def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_error=None,annotate_max=True):
+def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_error=None,annotate_max=True,shift=200):
     """
     This function plots individual metric data along with fitted metric values over age. 
     The x-axis values (age) are transformed using log2.
@@ -246,7 +273,7 @@ def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_
         y = fitmetric
         xpos = np.where(y == max(y))
         xmax = x[xpos]
-        ax.annotate(f'{fitages[xpos][0]} y', xy = (xmax,max(y)),xytext = (xmax,max(y)+0.6), arrowprops=dict(arrowstyle='wedge',facecolor='red'),fontsize=18,color = 'red')
+        ax.annotate(f'{fitages[xpos][0]} y', xy = (xmax,max(y)),xytext = (xmax,max(y)+shift), arrowprops=dict(arrowstyle='wedge',facecolor='red'),fontsize=18,color = 'red')
     plt.show()
 from plotnine import ggplot, aes, geom_point, scale_x_continuous, ggtitle, geom_line, scale_color_gradientn
 from mizani.transforms import trans
@@ -369,4 +396,183 @@ def plot_subject_data_and_fit(subject_data, subject_ages, fitted_data, age_atlas
     plt.legend()
     
     # Show the plot
+    plt.show()
+
+def plot_network_kdes(grads,net_names,net_labels,colormap,title='kde plots',x_min=-1,x_max = 1.5,sort_by_rank=True):
+    num_rows = len(net_names)
+    num_cols = 1
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(8, 2*len(net_names)),sharex=True)
+    data_list = []
+    for name in net_names:
+        inds = np.where(net_labels==name)[0]
+        data_list.append(grads[inds])
+    if sort_by_rank:
+        means = [np.mean(d) for d in data_list]
+        sorted_index = np.argsort(means)[::-1]
+        for i, sr in enumerate(sorted_index):
+            color = colormap(sr)  # Get color based on the row index
+            sns.kdeplot(data_list[sr], ax=axs[i], color=color,fill=True)
+            axs[i].set_ylabel(net_names[sr])
+            axs[i].spines['top'].set_visible(False)
+            axs[i].spines['right'].set_visible(False)
+            axs[i].set_xlim(x_min, x_max)
+    else:
+        for row_index, data in enumerate(data_list):
+            color = colormap(row_index)  # Get color based on the row index
+            sns.kdeplot(data, ax=axs[row_index], color=color,fill=True)
+            axs[row_index].set_ylabel(net_names[row_index])
+            axs[row_index].spines['top'].set_visible(False)
+            axs[row_index].spines['right'].set_visible(False)
+            axs[row_index].set_xlim(x_min, x_max)
+    fig.suptitle(title,y = 0.99, fontsize = 16, fontweight = 'bold')
+    
+    plt.tight_layout()
+    
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colorbar import ColorbarBase
+from matplotlib.colors import Normalize
+
+def plot_network_kdes_longitudinal(grads,net_names,net_labels,colormap,title='kde plots',x_min=-1,x_max = 1.5,sort_by_rank=True,timepoints = np.arange(50)*8,agemin=0, agemax=25,sorted_indices=None,return_indices=False):
+    num_rows = len(net_names)-1
+    num_cols = 1
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(10, 2*len(net_names)),sharex=True)
+    data_list = []
+    for name in net_names:
+        if name == ' medial wall':
+            continue
+        inds = np.where(net_labels==name)[0]
+        data_list.append(grads[:,inds])
+    if sort_by_rank:
+        if sorted_indices is None:
+            means = [np.mean(d[-1]) for d in data_list]
+            sorted_index = np.argsort(means)[::-1]
+        else:
+            sorted_index=sorted_indices
+        for i, sr in enumerate(sorted_index):
+            
+            color = colormap(sr+1)  # Get color based on the row index
+            agecmap = LinearSegmentedColormap.from_list('grey_to_default',['lightgrey',color])
+            for j in range(len(data_list[sr])):
+                sns.kdeplot(data_list[sr][j], ax=axs[i], color=agecmap(j/len(data_list[sr])),fill=False)
+            #axs[i,1].axis('off')
+            #axs[i,1].imshow([[0,1]],cmap=agecmap,aspect='auto')
+            #axs[i,1].set_yticks([])
+            #axs[i,1].set_xticks([])
+            axs[i].set_ylabel(net_names[sr+1])
+            axs[i].spines['top'].set_visible(False)
+            axs[i].spines['right'].set_visible(False)
+            axs[i].set_xlim(x_min, x_max)
+            
+            norm = Normalize(vmin=agemin,vmax=agemax)
+            sm = plt.cm.ScalarMappable(cmap=agecmap,norm=norm)
+            sm.set_array([])
+            fig.colorbar(sm,ax=axs[i],orientation='vertical')
+# =============================================================================
+#             cb_ax = fig.add_axes([0.88, axs[i, 0].get_position().y0, 0.02, axs[i, 0].get_position().height])
+#             cb = ColorbarBase(cb_ax, cmap=agecmap)
+#             cb_ax.yaxis.set_ticks_position('left')
+#             cb_ax.yaxis.set_label_position('left')
+#             cb_ax.spines['left'].set_position(('outward', 5))
+#             cb_ax.set_ylabel('Colorbar')
+# =============================================================================
+# =============================================================================
+#     else:
+#         for row_index, data in enumerate(data_list):
+#             color = colormap(row_index)  # Get color based on the row index
+#             sns.kdeplot(data, ax=axs[row_index], color=color,fill=True)
+#             axs[row_index].set_ylabel(net_names[row_index])
+#             axs[row_index].spines['top'].set_visible(False)
+#             axs[row_index].spines['right'].set_visible(False)
+#             axs[row_index].set_xlim(x_min, x_max)
+# =============================================================================
+    fig.suptitle(title,y = 0.99, fontsize = 16, fontweight = 'bold')
+    
+    plt.tight_layout()
+    if return_indices:
+        return sorted_index
+    
+    
+yeo7_colors = np.array([
+    (0, 0, 0),  # medial wall
+    (230, 148, 34),  # cont
+    (205, 62, 78),  # default
+    (0, 118, 14),  # DorsAttn
+    (220, 248, 26),  # Limbic
+    (196, 58, 250),  # SalVenAttn
+    (70, 130, 180),  # SomMot
+    (120, 18, 134)   # Vis
+])/255
+
+yeo17_colors =np.array([
+    [  0.,   0.,   0.],
+       [230., 148.,  34.],
+       [135.,  50.,  74.],
+       [119., 140., 176.],
+       [255., 255.,   0.],
+       [205.,  62.,  78.],
+       [  0.,   0., 130.],
+       [ 74., 155.,  60.],
+       [  0., 118.,  14.],
+       [200., 248., 164.],
+       [122., 135.,  50.],
+       [196.,  58., 250.],
+       [255., 152., 213.],
+       [ 70., 130., 180.],
+       [ 42., 204., 164.],
+       [ 12.,  48., 255.],
+       [120.,  18., 134.],
+       [255.,   0.,   0.]])/255
+
+from matplotlib.colors import ListedColormap
+yeo17_cmap = ListedColormap(yeo17_colors)
+yeo7_cmap = ListedColormap(yeo7_colors)
+def get_listed_cmap3d_from_parc(parc,colors):
+    parc_cmap = uts.get_parcellated_cmap(parc, colors,False)
+    cmap = ListedColormap(parc_cmap)
+    return cmap 
+
+def make_region_mask(parc,inds):
+    mask = np.zeros(len(parc))
+    
+    for j,i in enumerate(inds):
+        pinds = np.where(parc==i)[0]
+        mask[pinds] = j
+    return mask 
+
+def plot_corr_mat_upper_diag(mat,xlabels= ['SA','VS','MR'],ylabels = ['G1','G2','G3'],title='corr'):
+    corr_matrix = mat
+
+# Mask the lower triangle of the matrix (excluding the main diagonal)
+    #mask = np.tril(np.ones_like(corr_matrix, dtype=bool), k=-1)
+    #corr_matrix_masked = np.where(mask, np.nan, corr_matrix)
+    corr_matrix_masked = mat
+    # Plot the heatmap
+    fig, ax = plt.subplots()
+    cax = ax.imshow(corr_matrix_masked, cmap="coolwarm", vmin=0, vmax=1)
+    
+    # Display the colorbar
+    plt.colorbar(cax)
+    
+    # Set ticks to the top
+    ax.xaxis.tick_top()
+    
+    # Set tick labels
+    ax.set_xticks(np.arange(corr_matrix.shape[1]))
+    ax.set_yticks(np.arange(corr_matrix.shape[0]))
+    ax.set_xticklabels(xlabels)
+    ax.set_yticklabels(ylabels)
+    
+    # Loop over data dimensions and create text annotations.
+    for i in range(corr_matrix.shape[0]):
+        for j in range(corr_matrix.shape[1]):
+            #if not mask[i, j]:
+            text = ax.text(j, i, round(corr_matrix[i, j], 2),
+                               ha="center", va="center", color="black")
+    
+    # Remove bounding box
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    
+    # Display the plot
+    ax.set_title(title)
     plt.show()

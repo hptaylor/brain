@@ -73,7 +73,7 @@ class Gradient:
     @property
     def grange(self):
         gr = []
-        for i in range(self.ngrad):
+        for i in range(min(10,self.ngrad)):
             #gr.append(np.max(self.garray[:,i])-np.min(self.garray[:,i]))
             gr.append(np.percentile(self.garray[:,i],95)-np.percentile(self.garray[:,i],5))
         return np.array(gr)
@@ -98,6 +98,7 @@ class Gradient:
         for j in range (self.grange.shape[0]):
             ratios[j]=self.grange[j]/valsum
         return ratios 
+    
     
     def info(self):
         print(f'ID {self.string}')

@@ -23,7 +23,7 @@ class GradientSet:
     
     def __init__(self, pathlist = None, garrays = None, index = None, 
                  get_ids = True, get_vals = True, dtable = None, 
-                 aligned = False, get_ages = True, get_cohort = True):
+                 aligned = False, get_ages = True, get_cohort = True, get_degrees = True):
         """
     
         Parameters
@@ -64,6 +64,8 @@ class GradientSet:
                 self.dtable['index'] = index 
             glist = []
             ids = []
+            degrees = []
+            cos_degrees = []
             if pathlist is not None: 
                 if type(pathlist) == str:
                     pathlist = fps.get_paths_with_pattern(pathlist,
@@ -73,6 +75,11 @@ class GradientSet:
                     if get_ids:
                         ind = p.rfind('/') + 1
                         gid = p[ind:-10]
+                        if get_degrees:
+                            cd = np.load(p[:ind]+'degree/' + gid + '_cos_degree.npy')
+                            d = np.load(p[:ind]+'degree/' + gid + '_degree.npy')
+                            degrees.append(d)
+                            cos_degrees.append(cd)
                         if get_vals:
                             val_path = p[:-9] + 'vals.npy'
                             g = Gradient.Gradient(grad_path = p,
@@ -90,6 +97,9 @@ class GradientSet:
                 self.dtable['grads'] = np.array(glist)
                     
                 self.dtable['gid'] = np.array(ids)
+                if get_degrees:
+                    self.dtable['degree'] = degrees
+                    self.dtable['cos_degree'] = cos_degrees
             
         else:
             self.dtable = dtable
@@ -239,9 +249,9 @@ class GradientSet:
                     vals[i,z,j] = np.mean(g.garray[inds,j])
         return vals
                 
-        
+    
     def get_ranges(self):
-        granges = np.zeros((self.length,self.g(0,False).shape[1]))
+        granges = np.zeros((self.length,min(10,self.g(0,False).shape[1])))
         for i,g in enumerate(self.dtable['grads']):
             granges[i] = g.grange
         return granges
@@ -251,6 +261,12 @@ class GradientSet:
             gvars[i] = g.gvar
         return gvars
     
+    def get_pole_ranges(self,percent=25,temp=None):
+        if temp is None:
+            temp = self.template_grads
+        pole_ranges = uts.gradient_pole_trajectories(self.grad_arr_list(),percent,temp)
+        return pole_ranges
+        
     def select_equal(self, column, value):
         #return new GradientSet where column field equals value
         newtable = self.dtable[self.dtable[column] == value]
@@ -323,9 +339,9 @@ class GradientSet:
     def get_ages_bcp_hcpd_hcpya_hcpa(self):
         
         
-        hcpd = '/Users/patricktaylor/Documents/lifespan_analysis/HCPD_subject_infosheet.xls'
-        hcpa = '/Users/patricktaylor/Documents/lifespan_analysis/HCPA_subject_infosheet.xls'
-        hcpya = '/Users/patricktaylor/Documents/lifespan_analysis/HCPYA/HCPYA_restricted.csv'
+        hcpd = '/Users/patricktaylor/lifespan_analysis/HCPD_subject_infosheet.xls'
+        hcpa = '/Users/patricktaylor/lifespan_analysis/HCPA_subject_infosheet.xls'
+        hcpya = '/Users/patricktaylor/lifespan_analysis/HCPYA/HCPYA_restricted.csv'
         self.get_field_from_dataframe(hcpd,'interview_age', 'age')
         self.get_field_from_dataframe(hcpa, 'interview_age', 'age')
         self.get_field_from_dataframe(hcpya,'Age_in_Yrs', 'age','Subject',
@@ -334,7 +350,7 @@ class GradientSet:
         
     def compute_pca_template(self, n_comp = 3,check_sign = True, 
                              scale_by_vals=False, scale_m1_to_1=False, 
-                             return_temp=False, **kwargs):
+                             return_temp=False,return_evals=False, **kwargs):
         """
         
 
@@ -382,7 +398,10 @@ class GradientSet:
             if v[186,2]<0:
                 v[:,2] = -1*v[:,2]
         if return_temp:
-            return v 
+            if return_evals:
+                return v, pca.singular_values_
+            else:
+                return v 
         else:
             self.template_grads = v
     def two_step_template(self,n_comp=10,windows=[0,0.5,1,2,4,8,12,18,25,35,50,100]):

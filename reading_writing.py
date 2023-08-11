@@ -16,10 +16,10 @@ import utility as uts
 import brainspace as bs 
 
 #define globals 
-scrpath='/Users/patricktaylor/Documents/lifespan_analysis/scratch/'
+scrpath='/Users/patricktaylor/lifespan_analysis/scratch/'
 axisnames=['SA','VS','MR']
-lhp = '/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii' 
-rhp = '/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii' 
+lhp = '/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii' 
+rhp = '/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii' 
         
 
 def load_surf_objs():
@@ -154,8 +154,8 @@ def save_surface(filename, points, edges, labels=None, features=None, feature_na
         rhpath = p[0] + '/rh_' + p[1]
         
         h = int(len(points)/2)
-        lsc = sc[:h]
-        rsc = sc[h:]
+        lsc = points[:h]
+        rsc = points[h:]
         lsi = si[:int(len(si)/2)]
         rsi = si[int(len(si)/2):] - len(lsc)
         if labels is not None:
@@ -738,7 +738,94 @@ def read_schaefer400_17net_parc(lhpath):
     parc_dict['net_parc'] = netparc
     parc_dict['net_labels'] = netparclabs
     parc_dict['net_names'] = networknames
+    return parc_dict
+
+def read_schaefer400_7net_parc(lhpath):
     
+    rhpath = lhpath.replace('lh', 'rh')
+    
+    lhg = nib.load(lhpath)
+    rhg = nib.load(rhpath)
+    
+    lhparc = gifti2scal(lhg)[:,0]
+    rhparc = gifti2scal(rhg)[:,0]
+    
+    reg_parcs = [lhparc,rhparc]
+    
+    lhdict = lhg.labeltable.get_labels_as_dict()
+    rhdict = rhg.labeltable.get_labels_as_dict()
+    
+    lhregions = []
+    rhregions = []
+    
+    lhnetworks = []
+    rhnetworks = []
+    
+    lhdict = [lhdict[i][13:] for i in range(1,201)]
+    
+    rhdict =  [rhdict[i][13:] for i in range(1,201)]
+    
+    lhdict = [[' medial wall']]+[lhdict[i].rsplit('_') for i in range (200)]
+    rhdict = [[' medial wall']] + [rhdict[i].rsplit('_') for i in range (200)]
+    
+    lhnetworks = [lhdict[i][0] for i in range (201) ]
+    rhnetworks = [rhdict[i][0] for i in range (201) ]
+    
+    for i in range (201):
+        if len(lhdict[i]) == 3:
+            lhregname = 'lh_'+lhdict[i][1] + '_' + lhdict[i][2]
+        elif len(lhdict[i]) == 2:
+            lhregname = 'lh_'+lhdict[i][0] + '_' + lhdict[i][1]
+        elif len(lhdict[i]) == 1:
+            lhregname = 'lh_' +lhdict[i][0]
+        if len(rhdict[i]) == 3:
+            rhregname = 'rh_'+rhdict[i][1] + '_' + rhdict[i][2]
+        elif len(rhdict[i]) == 2:
+            rhregname = 'rh_'+rhdict[i][0] + '_' + rhdict[i][1]
+        elif len(rhdict[i]) == 1:
+            rhregname = 'rh_' +rhdict[i][0]
+        lhregions.append(lhregname)
+        rhregions.append(rhregname)
+    region_names = np.array(lhregions+rhregions)
+    
+    lhnetworks = np.array(lhnetworks)
+    rhnetworks = np.array(rhnetworks)
+    network_assignments = [lhnetworks,rhnetworks]
+    
+    networknames = np.unique(lhnetworks)
+    
+    lhnetparc = np.zeros(len(lhparc))
+    rhnetparc = np.zeros(len(rhparc))
+    
+    for z,parc in enumerate([lhnetparc,rhnetparc]):
+        
+        for i,name in enumerate(networknames):
+            
+            parcinds = np.where(network_assignments[z] == name)[0]
+            
+            for pnum in parcinds:
+                vertinds = np.where(reg_parcs[z] == pnum)[0]
+                parc[vertinds] = i
+    netparc = np.concatenate((lhnetparc,rhnetparc))
+    netparclabs = np.empty(netparc.shape,dtype='<U12')
+    for i in range (len(networknames)):
+        inds = np.where(netparc == i)[0]
+        netparclabs[inds] = networknames[i]
+    regparclabs = np.empty(netparc.shape,dtype='<U12')
+    regparc = np.concatenate((lhparc,rhparc+201))
+    for i in range (len(region_names)):
+        inds = np.where(regparc == i)[0]
+        regparclabs[inds] = region_names[i]
+    parc_dict= {}
+    
+    parc_dict['parc'] = regparc
+    parc_dict['region_labels'] = regparclabs
+    parc_dict['region_names'] = region_names
+    parc_dict['net_parc'] = netparc
+    parc_dict['net_labels'] = netparclabs
+    parc_dict['net_names'] = networknames
+    return parc_dict
+
 def normalize_ts(ts):
     ts=ts.T
     nts=(ts - np.mean(ts, axis=0)) / np.std(ts, axis=0)
@@ -787,7 +874,7 @@ def generate_mask_from_parc_hcp(lhparc,rhparc):
     mask[inds2]=1
     return mask 
 
-hcpmask=generate_mask_from_parc_hcp('/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.DesikanParc.ver2.L5.func.gii','/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.DesikanParc.ver2.L5.func.gii')
+#hcpmask=generate_mask_from_parc_hcp('/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.DesikanParc.ver2.L5.func.gii','/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.DesikanParc.ver2.L5.func.gii')
 
 
 def get_hcp_mask():
@@ -1019,15 +1106,15 @@ import brainspace as bs
 
 def plot_surface_brainspace(feature,mask,unmask=True,filename=None,hcpd=True,bcp=False,veryinflated=False):
     if hcpd:
-        surf_lh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii')
-        surf_rh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii')
+        surf_lh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii')
+        surf_rh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii')
             
     if bcp:
-        surf_lh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/Documents/BCP_preprocessed_fMRI/newfiles/Atlas_12Months_L.veryinflated.white.ver2.L5.surf.gii')
-        surf_rh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/Documents/BCP_preprocessed_fMRI/newfiles/Atlas_12Months_R.veryinflated.white.ver2.L5.surf.gii')
+        surf_lh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/BCP_preprocessed_fMRI/newfiles/Atlas_12Months_L.veryinflated.white.ver2.L5.surf.gii')
+        surf_rh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/BCP_preprocessed_fMRI/newfiles/Atlas_12Months_R.veryinflated.white.ver2.L5.surf.gii')
     if veryinflated:
-        surf_lh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/Documents/lifespan_analysis/105923.L.very_inflated_MSMAll.32k_fs_LR.surf.gii')
-        surf_rh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/Documents/lifespan_analysis/105923.R.very_inflated_MSMAll.32k_fs_LR.surf.gii')
+        surf_lh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/lifespan_analysis/105923.L.very_inflated_MSMAll.32k_fs_LR.surf.gii')
+        surf_rh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/lifespan_analysis/105923.R.very_inflated_MSMAll.32k_fs_LR.surf.gii')
     else:
         surf_lh, surf_rh = load_conte69()
     
@@ -1154,7 +1241,7 @@ def read_surface(surfpath,*args):
 
             return points, edges
 
-sc,si=read_surface('/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii','/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii')
+sc,si=read_surface('/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii','/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii')
 
 def downsample_scalar_sahar(lhpath,rhpath,save=None):
     

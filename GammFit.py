@@ -54,7 +54,7 @@ class GammFit:
         # Check the shapes of the arrays
         assert self.fit.shape[0] == self.std_error.shape[0] == self.ages.shape[0], "Mismatch in shape of input arrays"
     
-    def plot_fit(self, shift=True):
+    def plot_fit(self, shift=True,offset=20):
         """
         Plots the fitted GAMM, with or without a cohort shift.
 
@@ -65,7 +65,7 @@ class GammFit:
         """
         if not shift:
             for i in range(self.ndim):
-                pltg.plot_fitted_metric(self.indages, self.metric[:, i], self.ages, self.fit[:, i], f'{self.name} {i+1}', self.std_error[:, i])
+                pltg.plot_fitted_metric(self.indages, self.metric[:, i], self.ages, self.fit[:, i], f'{self.name} {i+1}', self.std_error[:, i],shift=offset)
         else:
             for i in range(self.ndim):
                 if i == 1:
@@ -73,7 +73,7 @@ class GammFit:
                 else:
                     mark_max = True 
                 shifted_metric = uts.apply_cohort_shift(self.metric[:, i], self.cohort_id, self.cohort_effect[:, i])
-                pltg.plot_fitted_metric(self.indages, shifted_metric, self.ages, self.fit[:, i], f'{self.name} {i+1}', self.std_error[:, i],annotate_max=mark_max)
+                pltg.plot_fitted_metric(self.indages, shifted_metric, self.ages, self.fit[:, i], f'{self.name} {i+1}', self.std_error[:, i],annotate_max=mark_max,shift=offset)
 
     def plot_fits(self):
         """

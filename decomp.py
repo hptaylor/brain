@@ -943,35 +943,35 @@ def compute_transmodality(grads):
             transmodality[i][j]=np.sqrt(max(0,grads[i,j,0]**2+ grads[i,j,2]**2-2*grads[i,j,1]**2))
     return transmodality
 
-phys_dist=np.load('/Users/patricktaylor/Documents/lifespan_analysis/intermediary/surf_dist_mat.npy')
-def compute_avg_physical_distance_in_neighborhood(grads,nn=1000,dthresh=0.4,phys_dist=phys_dist):
-    glh=grads[:10242]
-    grh=grads[10242:]
+#phys_dist=np.load('/Users/patricktaylor/Documents/lifespan_analysis/intermediary/surf_dist_mat.npy')
+# def compute_avg_physical_distance_in_neighborhood(grads,nn=1000,dthresh=0.4,phys_dist=phys_dist):
+#     glh=grads[:10242]
+#     grh=grads[10242:]
     
 
-    lhpdist=phys_dist[:10242,:10242]
-    rhpdist=phys_dist[10242:,10242:]
-    ds=[lhpdist,rhpdist]
-    fs=[]
-    for i, g in enumerate([glh,grh]):
-        f=np.zeros(len(g))
-        inds,dists=uts.neighbors(g,g,nn)
+#     lhpdist=phys_dist[:10242,:10242]
+#     rhpdist=phys_dist[10242:,10242:]
+#     ds=[lhpdist,rhpdist]
+#     fs=[]
+#     for i, g in enumerate([glh,grh]):
+#         f=np.zeros(len(g))
+#         inds,dists=uts.neighbors(g,g,nn)
         
-        for j in range (len(inds)):
-            f[j]=np.mean(ds[i][j,inds[j][dists[j]<dthresh]])
-        fs.append(f)
-    fs=np.hstack((fs[0],fs[1]))
-    return fs
+#         for j in range (len(inds)):
+#             f[j]=np.mean(ds[i][j,inds[j][dists[j]<dthresh]])
+#         fs.append(f)
+#     fs=np.hstack((fs[0],fs[1]))
+#     return fs
     
-def loc_metric(grads,nn=100,pd=phys_dist):
+# def loc_metric(grads,nn=100,pd=phys_dist):
     
-    f=np.zeros((len(grads)))
-    for i in range (len(grads)):
-        inds=np.argpartition(pd[i], nn)[:nn]
+#     f=np.zeros((len(grads)))
+#     for i in range (len(grads)):
+#         inds=np.argpartition(pd[i], nn)[:nn]
         
-        d=np.linalg.norm(grads[i]-grads[inds],axis=1)
-        f[i]=np.mean(d)
-    return f 
+#         d=np.linalg.norm(grads[i]-grads[inds],axis=1)
+#         f[i]=np.mean(d)
+#     return f 
     
     
     
