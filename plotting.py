@@ -209,6 +209,9 @@ def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labe
     color_cycle = cycler(color=cmap.colors)
     # Update the default rc settings
     plt.rcParams['axes.prop_cycle'] = color_cycle
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = 'Helvetica'
+
     for i in range(fitmetrics.shape[1]):
         ax.plot(np.log2(fitages + 1), fitmetrics[:,i],label=metric_labels[i])
         
@@ -226,10 +229,13 @@ def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labe
 
     ax.set_xticks(tick_positions)
     ax.set_xticklabels(tick_labels)
-
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    
+    plt.xlabel('X-axis Label', fontsize=20)
+    plt.ylabel('Y-axis Label', fontsize=20)
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metric_name)
-    ax.legend()
+    ax.legend(fontsize=20)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     plt.show()
@@ -252,6 +258,8 @@ def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_
     None. The function directly plots the data using matplotlib.
     """
     fig, ax = plt.subplots()
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = 'Helvetica'
     ax.plot(np.log2(fitages + 1), fitmetric, c='blue')
     if std_error is not None:
         ax.fill_between(np.log2(fitages+1), fitmetric-std_error*1.96, fitmetric+std_error*1.96, color='blue', alpha=0.2)
@@ -263,7 +271,10 @@ def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_
 
     ax.set_xticks(tick_positions)
     ax.set_xticklabels(tick_labels)
-
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    
+    plt.xlabel('X-axis Label', fontsize=20)
+    plt.ylabel('Y-axis Label', fontsize=20)
     ax.set_xlabel('age (years)')
     ax.set_ylabel(metriclabel)
     ax.spines['top'].set_visible(False)

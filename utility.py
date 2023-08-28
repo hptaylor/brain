@@ -398,6 +398,16 @@ def get_average_std_errors(ses):
     
     return np.sqrt(sum_of_variances/len(ses))
 
+def get_grad_poles(grads,percent):
+    result = np.zeros(grads.shape)
+    keep_num = int(grads.shape[0] * percent/100)
+    for i in range (grads.shape[1]):
+        topinds = top_k_indices(grads[:,i], keep_num)
+        bottominds = bottom_k_indices(grads[:,i], keep_num)
+        result[topinds,i] = 1
+        result[bottominds,i] = -1 
+    return result 
+    
 def gradient_pole_trajectories(gradlist,percent,ref_grads,std_errors=None,return_range=True):
     result = np.zeros((gradlist.shape[0],gradlist.shape[2],2))
     ##topresult = np.zeros((gradlist.shape[0],gradlist.shape[2]))
@@ -431,7 +441,7 @@ def gradient_pole_trajectories(gradlist,percent,ref_grads,std_errors=None,return
             return result[:,:,0] - result[:,:,1], range_std_error
         else:
             return result[:,:,0] - result[:,:,1]
-            
+
     
 from sklearn import cluster as clst 
 

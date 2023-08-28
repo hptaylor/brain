@@ -30,6 +30,43 @@ def load_surf_objs():
     return 
 
 
+def plot_surf(data,lh,rh=None,age=None,white=False,size=(800,200),title=None,crange=None,cmap='turbo',save=None,show=True,monthsurf=None,right=False,cbar=True,interactive=False):
+    
+    if len(data)==18463:
+        data=uts.unmask_medial_wall(data,bcpmask)
+    if monthsurf is not None:
+        lh=bs.mesh.mesh_io.read_surface(f'/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_{(monthsurf)}Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii')
+        if rh is not None:
+            rh=bs.mesh.mesh_io.read_surface(f'/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_{(monthsurf)}Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii')
+    if age is not None:
+        if rh is None:
+            lh=load_surface_atlas(age,white=white)[0]
+        else:
+            lh,rh=load_surface_atlas(age,white=white)
+    if rh is not None:
+        if not right:
+            p = sp.Plot(lh,rh,size=size,zoom=1.2, layout='row')
+            p.add_layer(data,color_range=crange,cmap=cmap,zero_transparent=False,cbar_label=title,cbar=cbar)
+        if right:
+            p = sp.Plot(rh,size=size,zoom=1.2, layout='row',cmap=cmap)
+            p.add_layer(data[int(data.shape[0]/2):],color_range=crange,cmap='jet',zero_transparent=False,cbar_label=title,cbar=cbar)
+    else:
+        if size==(800,200):
+            size=(400,200)
+            
+        p = sp.Plot(lh,size=size,zoom=1.2, layout='row')
+        if len(data)==20484:
+            p.add_layer(data[:int(data.shape[0]/2)],color_range=crange,cmap=cmap,zero_transparent=False,cbar_label=title,cbar=cbar)
+        else:
+            p.add_layer(data,color_range=crange,cmap=cmap,zero_transparent=False,cbar_label=title,cbar=cbar)
+    #p.show(interactive=interactive)
+    fig = p.build()
+    #fig.title(title)
+    if show:
+        fig.show()
+    if save is not None:
+        fig.savefig(save)
+    return 
 
 
 def plot_custom_colormap(vecs,col=None, age=None,save=None,return_colors=False,op=1,rot=None,rotcol=None,a=None,b=None,c=None,unmask=False):

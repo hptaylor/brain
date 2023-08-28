@@ -205,6 +205,17 @@ class GradientSet:
             glist.append(g.garray)
         return glist 
     
+    def mask_grads(self,mask=None):
+        if mask is not None:
+            self.mask = mask
+            
+        for g in self.dtable['grads']:
+            g.garray = uts.mask_medial_wall_vecs(g.garray,self.mask)
+        
+    def unmask_grads(self):
+        for g in self.dtable['grads']:
+            g.garray = uts.unmask_medial_wall_vecs(g.garray,self.mask)
+            
     def gwhere_between(self, column, lower, upper):
         #get grad arrays corresponding to column value between lower and upper
         gs = self.select_between(column, lower, upper)
@@ -495,6 +506,11 @@ class GradientSet:
             new_gs = GradientSet(garrays = glist)
             return new_gs
     
+    def smooth_grads(self,smoothing_mat):
+        
+        for g in self.dtable['grads']:
+            g.garray = smoothing_mat.dot(g.garray)
+            
     def get_cos_sim_w_template(self):
         cossims = np.zeros((self.length,self.ngrad))
         for i,g in enumerate(self.dtable['grads']):
