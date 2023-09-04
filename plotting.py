@@ -180,15 +180,16 @@ def plot_lines_metric_vs_age_log(ages, metric, metriclabel = 'metric',keys=['SA'
 
     ax.set_xticks(tick_positions)
     ax.set_xticklabels(tick_labels)
-    ax.set_xlabel('age (years)')
-    ax.set_ylabel(metriclabel)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.set_xlabel('age (years)',fontsize=20)
+    ax.set_ylabel(metriclabel,fontsize=20)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     if legend:  
-        ax.legend()
+        ax.legend(fontsize=15)
     plt.show()
 
-def plot_lines_metric_vs_age_from_dict(fg,metric,name_list,net_names,metric_label='metric',subtract_mean=False,cmap=None):
+def plot_lines_metric_vs_age_from_dict(fg,metric,name_list,net_names,metric_label='metric',subtract_mean=False,cmap=None,legend=True):
     #inds = np.where(np.isin(name_list,np.sort(np.array(net_names))))[0]
     inds = [np.where(name_list == s)[0][0] for s in net_names]
     if cmap == 'yeo7':
@@ -197,32 +198,33 @@ def plot_lines_metric_vs_age_from_dict(fg,metric,name_list,net_names,metric_labe
         cmap = ListedColormap(yeo17_colors[inds])
     if len(metric.shape)>2: 
         for i in range (metric.shape[2]):
-            plot_lines_metric_vs_age_log(fg.ages,metric[:,inds,i],metric_label,net_names,subtract_mean,cmap,legend=True)
+            plot_lines_metric_vs_age_log(fg.ages,metric[:,inds,i],metric_label,net_names,subtract_mean,cmap,legend=legend)
     else:
-        plot_lines_metric_vs_age_log(fg.ages,metric[:,inds],metric_label,net_names,subtract_mean,cmap,legend=True)
+        plot_lines_metric_vs_age_log(fg.ages,metric[:,inds],metric_label,net_names,subtract_mean,cmap,legend=legend)
         
         
-def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labels=['SA','VS','MR'],annotate_max=True):
+def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labels=['SA','VS','MR'],annotate_max=True,annotate_offset = 5):
     fig, ax = plt.subplots()
-    cmap = mcolors.ListedColormap(plt.get_cmap('tab10').colors)
+    #cmap = mcolors.ListedColormap(plt.get_cmap('tab10').colors)
     # Define the color cycle based on tab20 colormap
-    color_cycle = cycler(color=cmap.colors)
+    #color_cycle = cycler(color=cmap.colors)
     # Update the default rc settings
-    plt.rcParams['axes.prop_cycle'] = color_cycle
+    #plt.rcParams['axes.prop_cycle'] = color_cycle
     plt.rcParams['font.family'] = 'sans-serif'
     plt.rcParams['font.sans-serif'] = 'Helvetica'
-
+    if metric_labels[0] == 'SA':
+        colors = ['red','green','gray']
     for i in range(fitmetrics.shape[1]):
-        ax.plot(np.log2(fitages + 1), fitmetrics[:,i],label=metric_labels[i])
+        ax.plot(np.log2(fitages + 1), fitmetrics[:,i],label=metric_labels[i],c = colors[i])
         
-        ax.fill_between(np.log2(fitages+1), fitmetrics[:,i]-std_error[:,i]*1.96, fitmetrics[:,i]+std_error[:,i]*1.96,  alpha=0.2)
+        ax.fill_between(np.log2(fitages+1), fitmetrics[:,i]-std_error[:,i]*1.96, fitmetrics[:,i]+std_error[:,i]*1.96,  alpha=0.2,color = colors[i])
         if annotate_max:
             if i!=1:
                 x = np.log2(fitages + 1)
                 y = fitmetrics[:,i]
                 xpos = np.where(y == max(y))
                 xmax = x[xpos]
-                ax.annotate(f'{fitages[xpos][0]} y', xy = (xmax,max(y)),xytext = (xmax,max(y)+0.6), arrowprops=dict(arrowstyle='wedge',facecolor='red'),fontsize=18,color = 'red')
+                ax.annotate(f'{fitages[xpos][0]} y', xy = (xmax,max(y)),xytext = (xmax,max(y)+annotate_offset), arrowprops=dict(arrowstyle='wedge',facecolor='black'),fontsize=18,color = 'black')
     # Specify the tick positions and labels
     tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]  # Desired x-axis labels
     tick_positions = np.log2(np.array(tick_labels) + 1)  # Corresponding x-axis positions
@@ -514,6 +516,18 @@ yeo7_colors = np.array([
     (120, 18, 134)   # Vis
 ])/255
 
+yeo7_colors_3d =np.array([
+    (0, 0, 0),  # medial wall
+    (200, 200, 200),  # cont
+    (255, 80, 80),  # default
+    (130, 100, 200),  # DorsAttn
+    (220, 128, 85),  # Limbic
+    (50, 100, 50),  # SalVenAttn
+    (0, 255, 0),  # SomMot
+    (0, 0, 255)   # Vis
+])/255
+
+ 
 yeo17_colors =np.array([
     [  0.,   0.,   0.],
        [230., 148.,  34.],
@@ -534,9 +548,27 @@ yeo17_colors =np.array([
        [120.,  18., 134.],
        [255.,   0.,   0.]])/255
 
+#from matplotlib import cm
+
+def plot_colorbar(cmap):
+    fig = plt.figure(figsize=(5, 1))
+    cax = fig.add_axes([0.05, 0.5, 0.9, 0.4])
+    cbar = fig.colorbar(cm.ScalarMappable(cmap=cmap), cax=cax, orientation='horizontal', ticks=[])
+    plt.show()
 from matplotlib.colors import ListedColormap
 yeo17_cmap = ListedColormap(yeo17_colors)
+yeo7_cmap3d = ListedColormap(yeo7_colors_3d)
+
 yeo7_cmap = ListedColormap(yeo7_colors)
+
+def get_color_tuples_from_cmap(netparc,cmap):
+    colors = np.zeros((len(netparc),4))
+    
+    for i in range (len(set(netparc))):
+        inds = np.where(netparc == i)[0]
+        colors[inds] = cmap(i)
+    return colors[:,:3]
+
 def get_listed_cmap3d_from_parc(parc,colors):
     parc_cmap = uts.get_parcellated_cmap(parc, colors,False)
     cmap = ListedColormap(parc_cmap)
@@ -587,3 +619,56 @@ def plot_corr_mat_upper_diag(mat,xlabels= ['SA','VS','MR'],ylabels = ['G1','G2',
     # Display the plot
     ax.set_title(title)
     plt.show()
+    
+from matplotlib import cm 
+import utility as uts
+
+def get_vertex_cmap_tuples(grads,cmap_name='jet',gradind = 0):
+    cmap = cm.get_cmap(cmap_name)
+    normgrad = uts.norm_vecs(grads)[:,gradind]
+    
+    tups = [cmap(normgrad[i]) for i in range (len(grads))]
+    return np.array(tups)[:,:3]*255
+
+def barycentric(g,a=np.array([0,1,0.5]),b=np.array([-0.2,-0.2,0]),c=np.array([1.2,0.7,0])):
+    #c=np.array([1,0.7,0.35])np.array([0,1,0.4])np.array([1,1,0.5])
+    p=[g[0],g[1],g[2]]
+    abc=np.linalg.norm(np.cross(c-a,b-a))
+    cap=np.linalg.norm(np.cross(c-p,a-p))
+    abp=np.linalg.norm(np.cross(a-p,b-p))
+    bcp=np.linalg.norm(np.cross(c-p,b-p))
+    
+    u=cap/abc
+    v=abp/abc
+    w=bcp/abc
+    cc=np.zeros(3)
+    
+    c1=np.array([0,0,1])
+    c1=c1/np.linalg.norm(c1)
+    c2=np.array([1,0,0])
+    c2=c2/np.linalg.norm(c2)
+    c3=np.array([0,1,0])
+    c3=c3
+    cc=c1*w+c2*v+c3*u
+    cc=cc
+    return cc 
+
+def cmap3d_bary(grads):
+    point=np.array([1,0.7,0.35])
+    colors=np.zeros(grads.shape)
+    ng=uts.norm_vecs(grads)
+    for i in range (len(grads)):
+        colors[i]=barycentric(ng[i])
+        #h,s,v=colorsys.rgb_to_hsv(colors[i,0],colors[i,1],colors[i,2])
+        #v=min(1,np.linalg.norm(ng[i]-point))
+        #s=1-ng[i,0]
+        #r,g,b=colorsys.hsv_to_rgb(h,s,v)
+        #r,g,b=colorsys.hsv_to_rgb(colors[i,0],colors[i,1],colors[i,2])
+        #colors[i]=np.array([r,g,b])
+    return uts.norm_vecs(colors)
+
+def parc_avg_cmap(grads,parc):
+    colors3d = cmap3d_bary(grads)
+    colors3d_parc = uts.get_parcellated_cmap(parc,colors3d)
+    
+    return colors3d_parc

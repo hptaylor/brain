@@ -32,39 +32,46 @@ def save_grid(features,directory,lh,cranges = None, uniform_crange = True,crange
     
 
 
-def stitch_images(directory_path,filename = None ):
+def stitch_images(directory_path):
     # List all files in the directory
     files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
-    
-    # Extract row and column numbers and sort images accordingly
+
+    # Extract row and column numbers from filenames and sort images
     sorted_files = sorted(files, key=lambda x: (int(x.split('_')[0]), int(x.split('_')[1].split('.')[0])))
 
     # Initialize list to store images
     images = []
 
-    # Open images
+    # Open and crop images
     for file in sorted_files:
-        images.append(Image.open(os.path.join(directory_path, file)))
+        img = Image.open(os.path.join(directory_path, file))
 
-    # Assuming all images are of the same size
+        width, height = img.size
+        left_margin = width * 0.10
+        right_margin = width * 0.90
+        upper_margin = height * 0.20
+        lower_margin = height * 0.80
+
+        # Crop the image
+        cropped_img = img.crop((left_margin, upper_margin, right_margin, lower_margin))
+
+        images.append(cropped_img)
+
+    # Assuming all cropped images are of the same size
     img_width, img_height = images[0].size
 
-    # Determine the total number of unique rows and columns
-    num_rows = len(set([int(f.split('_')[0]) for f in sorted_files]))
-    num_cols = len(set([int(f.split('_')[1].split('.')[0]) for f in sorted_files]))
+    # Determine number of unique rows and columns based on file count
+    num_rows = max(int(file.split('_')[0]) for file in files) + 1
+    num_cols = max(int(file.split('_')[1].split('.')[0]) for file in files) + 1
 
     # Create an empty image with the necessary width and height
     stitched_image = Image.new('RGB', (img_width * num_cols, img_height * num_rows))
 
-    # Paste each image into its position
+    # Paste each cropped image into its position
     for idx, image in enumerate(images):
         row = idx // num_cols
         col = idx % num_cols
         stitched_image.paste(image, (col * img_width, row * img_height))
 
     # Save the stitched image
-    if filename is None:
-        filename = 'stitched.png'
-    stitched_image.save(os.path.join(directory_path, filename))
-    
-    
+    stitched_image.save(os.path.join(directory_path, 'stitched.png'))
