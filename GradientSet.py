@@ -10,6 +10,7 @@ import reading_writing as rw
 import utility as uts 
 import numpy as np 
 from brainspace.gradient.alignment import procrustes
+import brainspace as bs
 import Gradient 
 import pandas as pd 
 from sklearn.decomposition import PCA
@@ -438,7 +439,7 @@ class GradientSet:
             
         return v, templates
     
-    def procrustes_align(self,replace = True, lower = 14, upper = 40, n_comp = 3,return_reference=True, **kwargs):
+    def procrustes_align(self,replace = True, lower = 14, upper = 40, n_comp = 3,return_reference=True, template=True,**kwargs):
         """
         
 
@@ -461,15 +462,19 @@ class GradientSet:
         for g in self.dtable['grads']:
             garrlist.append(g.garray)
         
-        if not hasattr(self, 'template_grads'):           
-            self.compute_pca_template(n_comp,lower = lower, upper = upper, column = 'age')    
-        glist = uts.procrustes_alignment(np.array(garrlist)[:,:,:n_comp], 
-                                         self.template_grads, n_iter=130, 
+        if not hasattr(self, 'template_grads'):
+            if template:
+                self.compute_pca_template(n_comp,lower = lower, upper = upper, column = 'age')    
+                glist = uts.procrustes_alignment(np.array(garrlist)[:,:,:n_comp], 
+                                         self.template_grads, n_iter=25, 
                                          tol=1e-25, verbose=True, return_reference=return_reference)
+                if return_reference:
+                    glist, reference = glist 
+            else:
+                glist,reference = bs.gradient.alignment.procrustes_alignment(np.array(garrlist),n_iter=25,tol = 1e-25, return_reference=True)
     
-        if return_reference:
-            glist, reference = glist 
         
+            
         self.template_grads = reference
         if replace:
             for i,g in enumerate(self.dtable['grads']):
@@ -528,17 +533,20 @@ class GradientSet:
         self.clustering = lab 
     def plot_grad_ranges(self,n=3):
         granges = self.granges 
-        for i in range(n):
-            pltg.plot_metric_vs_age_log(self.ages,granges[:,i],f'G{i+1} range')
+        f = pltg.plot_fits_separately(subject_data=granges[:,:3],subject_ages=self.ages,fit_colors=['r','g','b'],fit_names=['SA','VS','MR'],ylabel='grad range')
+        #for i in range(n):
+        #    pltg.plot_metric_vs_age_log(self.ages,granges[:,i],f'G{i+1} range')
             
     def plot_grad_vars(self,n=3):
         gvars = self.gvars 
-        for i in range(n):
-            pltg.plot_metric_vs_age_log(self.ages,gvars[:,i],f'G{i+1} variance')  
+        f = pltg.plot_fits_separately(subject_data=gvars[:,:3],subject_ages=self.ages,fit_colors=['r','g','b'],fit_names=['SA','VS','MR'],ylabel='grad variance')
+        #for i in range(n):
+        #    pltg.plot_metric_vs_age_log(self.ages,gvars[:,i],f'G{i+1} variance')  
     def plot_cos_sims_to_template(self,n=3):
         cossims = self.get_cos_sim_w_template()
-        for i in range (n):
-            pltg.plot_metric_vs_age_log(self.ages,cossims[:,i],f'G{i+1} cosine sim')
+        f = pltg.plot_fits_separately(subject_data=cossims[:,:3],subject_ages=self.ages,fit_colors=['r','g','b'],fit_names=['SA','VS','MR'],ylabel='cos sim')
+        #for i in range (n):
+        #    pltg.plot_metric_vs_age_log(self.ages,cossims[:,i],f'G{i+1} cosine sim')
             
     def surface_plot(self, gradind, plotind = None):
         self.g(gradind,True).surface_plot(plotind)
@@ -578,7 +586,7 @@ class GradientSet:
             
     
 
-    def save_to_dataframe(self, directory, name_suffix='aligned_cos', cohort=False):
+    def save_to_dataframe(self, directory, name_suffix='aligned_cos', cohort=True):
         gmat = self.grad_arr_list()
     
         for k in range(3):
@@ -631,8 +639,11 @@ class GradientSet:
             
     def fit_gamm_metric(self,metric,directory,name,cohort=True,ndim=3,k=10):
         self.save_metric_to_dataframe(metric,directory,name,cohort,ndim)
-        os.system(f'Rscript fit_metric_GAMM.R {directory} {name} {k}')
-        return gf.GammFit(directory,name,ndim)
+        if cohort:
+            os.system(f'/usr/local/bin/Rscript /Users/patricktaylor/Documents/brain/fit_metric_GAMM_cohort.R {directory} {name} {k}')
+        else:
+            os.system(f'/usr/local/bin/Rscript /Users/patricktaylor/Documents/brain/fit_metric_GAMM.R {directory} {name} {k}')
+        return gf.GammFit(directory,name,ndim = ndim,cohort=cohort)
     
     def plot_eigenvalues(self,lower_age = None, upper_age = None,num_evals=None,exp_ratio=False,range_ratio=False,cmap = 'plasma'):
         if lower_age is not None:
@@ -648,7 +659,7 @@ class GradientSet:
     
     def plot_dispersions_vs_age(self,ndim=3):
         self.get_dispersions(ndim)
-        pltg.plot_metric_vs_age_log(self.ages,self.dtable['dispersion'],'dispersion')
+        pltg.plot_subject_data(self.dtable['dispersion'],self.ages,ylabel='dispersion')
         
     def plot_gradient_kdes(self, gradind = 0):
         pltg.plot_kde_by_age(self.grad_arr_list()[:,:,gradind],self.ages)

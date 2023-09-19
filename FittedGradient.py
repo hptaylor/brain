@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 import metrics as mts 
 import os
 import plotting as pltg
+import stat_utils as stu 
+
 class FittedGradient:
     """A class used to represent a FittedGradient."""
 
@@ -203,6 +205,33 @@ class FittedGradient:
                         m = np.mean(self.array[i,inds,j])
                     vals[i,z,j] = m
         return vals 
+    def get_centile_trajectories(self,percentile,fixedinds = True, tempforinds = None,cross=False):
+        if not cross:
+            centile_trajectories = np.zeros((self.ntimepoints,int(100/percentile),self.ngrad))
+            if fixedinds:
+                tempinds = [stu.centile_binning(tempforinds[:,i],percentile)[1] for i in range (tempforinds.shape[1]) ]
+                for i in range (self.ngrad):
+                    for j in range (len(tempinds[0])):
+                        for z in range (self.ntimepoints):
+                            centile_trajectories[z,j,i] = np.mean(self.array[z,tempinds[i][j],i])
+            else:
+                for i in range(self.ngrad):
+                    for j in range (self.ntimepoints):
+                        centile_trajectories[j,:,i] = stu.centile_binning(self.array[j,:,i],percentile)
+            return centile_trajectories
+        else:
+            centile_trajectories = np.zeros((self.ntimepoints,int(100/percentile),self.ngrad,self.ngrad))
+            if fixedinds:
+                tempinds = [stu.centile_binning(tempforinds[:,i],percentile)[1] for i in range (tempforinds.shape[1]) ]
+                for i in range (self.ngrad):
+                    for k in range (self.ngrad):
+                        for j in range (len(tempinds[0])):
+                            for z in range (self.ntimepoints):
+                                centile_trajectories[z,j,i,k] = np.mean(self.array[z,tempinds[i][j],k])
+
+            return centile_trajectories
+    
+                    
     def plot_avg_val_parc(self,parc,network_names,zscore=True,deviation=True,axes=['SA','VS','MR']):
         vals = self.get_avg_val_parc(parc,zscore)
         for i in range (3):

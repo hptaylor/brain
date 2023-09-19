@@ -16,12 +16,409 @@ import matplotlib.cm as cm
 import numpy as np 
 from cycler import cycler
 import matplotlib.colors as mcolors
+from brainspace.plotting import plot_hemispheres
+import stat_utils as stu 
 
 scrpath='/Users/patricktaylor/lifespan_analysis/scratch/'
 axisnames=['SA','VS','MR']
 lhp = '/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii' 
 rhp = '/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii' 
         
+
+def plot_histogram(data,title='histogram'):
+    """
+    Plot a histogram of the data with 100 bins.
+
+    Parameters:
+    - data (list or array-like): The data to be plotted.
+    """
+    plt.figure()
+    plt.hist(data, bins=100, edgecolor='k', alpha=0.7)
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
+    plt.title(title)
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.show()
+
+def plot_histograms_same_axis(datas,labels,title='histogram'):
+    """
+    Plot histograms of multiple datasets on the same axis.
+
+    Parameters:
+    - datas (array-like): The data to be plotted. Expected shape (N_datapoints, n_datasets).
+    - labels (list): List of labels for the datasets. Expected length n_datasets.
+    - title (str): Title for the plot.
+    """
+    plt.figure()
+    
+    # Ensure datas and labels match in the second dimension
+    if datas.shape[1] != len(labels):
+        raise ValueError("Number of datasets does not match the number of labels.")
+
+    # Plot each dataset
+    for i in range(datas.shape[1]):
+        plt.hist(datas[:, i], bins=100, alpha=0.5, label=labels[i], edgecolor='k')
+
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
+    plt.title(title)
+    plt.legend(loc='best')
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.show()
+
+def plot_surf_grid(data_list,lh,rh,data_labels = None,cmap = 'jet', save = None, width = 800, zoom = 1.2, cbar = True):
+    
+    height = int(len(data_list)*width/4)
+    size = (width,height)
+    
+    if save is not None:
+        transparent_bg = True
+        screenshot = True
+    else:
+        transparent_bg = False
+        screenshot = False
+    f = plot_hemispheres(lh, rh, array_name = data_list, label_text = data_labels, 
+                     interactive = False, screenshot = screenshot, 
+                     filename = save, size = size, zoom = zoom, 
+                     background = (255,255,255), 
+                     transparent_bg = transparent_bg, cmap = cmap, color_bar = cbar)
+    return f
+
+def prepare_log_axis_plot(figsize=(800,800)):
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    # Set up the log axis ticks
+    tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]
+    tick_positions = np.log2(np.array(tick_labels) + 1)
+    ax.set_xticks(tick_positions)
+    ax.set_xticklabels(tick_labels)
+    
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.set_xlabel('age (years)', fontsize=20)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    return fig, ax
+
+def plot_subject_data(subject_data, subject_ages, color='black', marker='o', marker_size=0.5, fig=None, ax=None, **kwargs):
+    """
+    Scatter plot subject-wise data on a prepared log axis.
+
+    Args:
+    - subject_data (array): Subject-wise data values.
+    - subject_ages (array): Corresponding ages for each subject.
+    - color (str, optional): Color of the plot points. Defaults to 'black'.
+    - marker (str, optional): Marker style for data points. Defaults to 'o' (circle).
+    - fig (matplotlib.figure.Figure, optional): Figure object to plot on. If None, a new figure is created.
+    - ax (matplotlib.axes.Axes, optional): Axis object to plot on. If None, a new axis is created.
+
+    Returns:
+    - fig, ax: Figure and axis objects with the plotted data.
+    """
+
+    # Check if fig and ax are provided. If not, create new ones using prepare_log_axis_plot
+    if fig is None or ax is None:
+        fig, ax = prepare_log_axis_plot()
+
+    # Convert ages to log2 scale for plotting
+    log_ages = np.log2(np.array(subject_ages) + 1)
+
+    # Plot the data using scatter
+    ax.scatter(log_ages, subject_data, color=color, marker=marker, s=marker_size)
+    
+    if 'title' in  kwargs:
+        ax.set_title(kwargs['title'])
+    if 'ylabel' in kwargs:
+        ax.set_ylabel(kwargs['ylabel'])
+    return fig, ax
+
+
+def plot_fit_with_data(fit, std_error=None, subject_data=None, subject_ages=None, 
+                       fit_color='r', ci_alpha=0.2, age_factor=4, ylabel=None, fig=None, ax=None, **kwargs):
+    """
+    Plots a fit (and optionally its confidence interval) on a prepared log axis. 
+    If subject data and ages are provided, they are plotted as a scatter plot.
+
+    Args:
+    - fit (array): Fit values.
+    - std_error (array, optional): Standard error for each fit value. If provided, confidence interval is plotted.
+    - subject_data (array, optional): Subject-wise data values.
+    - subject_ages (array, optional): Corresponding ages for each subject.
+    - fit_color (str, optional): Color of the fit line. Defaults to 'r' (red).
+    - ci_color (str, optional): Color of the confidence interval shading. Defaults to 'r' (red).
+    - ci_alpha (float, optional): Transparency level of the confidence interval shading. Defaults to 0.2.
+    - age_factor (int, optional): Factor to adjust the age-to-log2 conversion. Defaults to 4.
+    - ylabel (str, optional): Y-axis label.
+    - fig, ax (optional): Existing figure and axis objects. If not provided, new ones are created.
+
+    Returns:
+    - fig, ax: Figure and axis objects with the plotted data and fit.
+    """
+
+    # Simplifying the dimensions of fit and std_error if they are 2D with single column
+    if len(fit.shape) > 1:
+        fit = fit[:, 0]
+    if std_error is not None and len(std_error.shape) > 1:
+        std_error = std_error[:, 0]
+        
+    # If subject data is provided, first plot it
+    if subject_data is not None and subject_ages is not None:
+        fig, ax = plot_subject_data(subject_data, subject_ages, fig=fig, ax=ax, **kwargs)
+    elif fig is None or ax is None:
+        fig, ax = prepare_log_axis_plot()
+
+    # Convert ages to log2 scale for plotting the fit
+    log_ages = np.log2(np.arange(len(fit)) / age_factor + 1)
+
+    # Plot the fit
+    ax.plot(log_ages, fit, color=fit_color)
+
+    # If std_error is provided, shade the confidence interval
+    if std_error is not None:
+        lower_bound, upper_bound = stu.compute_confidence_interval(fit, std_error)
+        ax.fill_between(log_ages, lower_bound, upper_bound, color=fit_color, alpha=ci_alpha)
+
+    # If ylabel is provided, set the y-axis label
+    if ylabel:
+        ax.set_ylabel(ylabel)
+    if 'title' in kwargs:
+        ax.set_title(kwargs['title'])
+        
+    return fig, ax
+
+def plot_multiple_fits(fits, std_errors=None, subject_data=None, subject_ages=None, 
+                       fit_names=None, fit_colors=None, age_factor=4, ylabel=None, **kwargs):
+    """
+    Plot multiple fits (and optionally their confidence intervals) on the same axis.
+
+    Args:
+    - fits (array): Array of shape (N_timepoints x N_fits) containing the fit values.
+    - std_errors (array, optional): Array of shape (N_timepoints x N_fits) containing standard errors.
+    - subject_data (array, optional): Subject-wise data values.
+    - subject_ages (array, optional): Corresponding ages for each subject.
+    - fit_names (list, optional): List of names for the fits.
+    - fit_colors (list, optional): List of colors for the fits.
+    - age_factor (int, optional): Factor to adjust the age-to-log2 conversion. Defaults to 4.
+    - ylabel (str, optional): Y-axis label.
+
+    Returns:
+    - fig, ax: Figure and axis objects with the plotted data and fits.
+    """
+    
+    # Create the initial plot (with the first fit or just the subject data)
+    fig, ax = plot_fit_with_data(fits[:, 0], 
+                                 std_errors[:, 0] if std_errors is not None else None,
+                                 subject_data, subject_ages, 
+                                 fit_color=fit_colors[0] if fit_colors else 'r',
+                                 ylabel=ylabel,
+                                 age_factor=age_factor, 
+                                 **kwargs)
+    
+    # Plot the remaining fits
+    for i in range(1, fits.shape[1]):
+        color = fit_colors[i] if fit_colors else 'r'
+        plot_fit_with_data(fits[:, i], 
+                           std_errors[:, i] if std_errors is not None else None,
+                           fig=fig, ax=ax, 
+                           fit_color=color,
+                           age_factor=age_factor, 
+                           **kwargs)
+    
+    # Add legend if fit names are provided
+    if fit_names:
+        ax.legend(fit_names)
+    
+    return fig, ax
+
+def plot_fits_separately(fits=None, std_errors=None, subject_data=None, subject_ages=None, 
+                         fit_names=None, fit_colors=None, age_factor=4, ylabel=None, **kwargs):
+    """
+    Plot each fit (and optionally its confidence interval) on separate axes.
+
+    Args:
+    - fits (array): Array of shape (N_timepoints x N_fits) containing the fit values.
+    - std_errors (array, optional): Array of shape (N_timepoints x N_fits) containing standard errors.
+    - subject_data (array, optional): Subject-wise data values.
+    - subject_ages (array, optional): Corresponding ages for each subject.
+    - fit_names (list, optional): List of names for the fits.
+    - fit_colors (list, optional): List of colors for the fits.
+    - age_factor (int, optional): Factor to adjust the age-to-log2 conversion. Defaults to 4.
+    - ylabel (str, optional): Y-axis label.
+
+    Returns:
+    - fig: Figure object with the plotted data and fits on separate axes.
+    """
+    if fits:
+        n_fits = fits.shape[1]
+    else:
+        n_fits = subject_data.shape[1]
+        
+    
+    # Create a new figure with n_fits number of axes arranged horizontally
+    fig, axes = plt.subplots(nrows=1, ncols=n_fits, figsize=(5*n_fits, 5))
+    
+    # Ensure axes is an array (useful for the case of a single fit)
+    if n_fits == 1:
+        axes = [axes]
+    
+    # For each fit, plot it on its corresponding axis
+    for i in range(n_fits):
+        color = fit_colors[i] if fit_colors else 'r'
+        if fits:
+            _, ax = plot_fit_with_data(fits[:, i], 
+                                       std_errors[:, i] if std_errors is not None else None,
+                                       subject_data[:,i], subject_ages, 
+                                       fit_color=color, ylabel=ylabel if i==0 else None,
+                                       age_factor=age_factor, 
+                                       fig=fig, ax=axes[i], 
+                                       **kwargs)
+            tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]
+            tick_positions = np.log2(np.array(tick_labels) + 1)
+            ax.set_xticks(tick_positions)
+            ax.set_xticklabels(tick_labels)
+            
+            ax.tick_params(axis='both', which='major')
+            ax.set_xlabel('age (years)')
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+        else:
+            _, ax = plot_subject_data(subject_data[:,i],subject_ages,color,fig=fig,ax=axes[i],title=fit_names[i],ylabel = ylabel if i==0 else None)
+            tick_labels = [0, 1, 2, 4, 10, 18, 30, 50, 80]
+            tick_positions = np.log2(np.array(tick_labels) + 1)
+            ax.set_xticks(tick_positions)
+            ax.set_xticklabels(tick_labels)
+            
+            ax.tick_params(axis='both', which='major')
+            ax.set_xlabel('age (years)')
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+        # Set title for each axis if fit_names are provided
+        if fit_names:
+            ax.set_title(fit_names[i])
+    
+    # Adjust the layout to prevent overlap
+    fig.tight_layout()
+    
+    return fig
+
+
+def plot_centiles_vs_age_log(ages, metric, metriclabel='metric', subtract_mean=False, cmap='jet',cmap_age=25):
+    """
+    Plot centile curves versus age on a logarithmic axis.
+    
+    Args:
+    - ages (numpy.ndarray): 1D array containing age values.
+    - metric (numpy.ndarray): 2D array containing metric values. Each column represents a set of measurements.
+    - metriclabel (str, optional): Y-axis label. Defaults to 'metric'.
+    - subtract_mean (bool, optional): If True, subtract the mean of each metric set from its values. Defaults to False.
+    - cmap (str or callable, optional): Colormap name or callable for plotting. Defaults to 'jet'.
+    - show_cbar (str, optional): If provided, the name of a colormap to display alongside as a colorbar.
+    
+    Raises:
+    - ValueError: If the ages and metric arrays do not have compatible shapes.
+    
+    Returns:
+    - None
+    """
+    
+    if len(ages) != metric.shape[0]:
+        raise ValueError("The length of `ages` array must match the number of rows in the `metric` array.")
+    
+    if not callable(cmap):
+        cmap_func = construct_centile_colormap(metric[4*cmap_age],cmap)
+    else:
+        cmap_func = cmap
+    
+    fig, ax = prepare_log_axis_plot()
+    ax.set_ylabel(metriclabel, fontsize=20)
+    
+    for i in range(metric.shape[1]):
+        if subtract_mean:
+            ax.plot(np.log2(ages + 1), metric[:,i] - np.mean(metric[:,i]), color=cmap_func(i))
+        else:
+            ax.plot(np.log2(ages + 1), metric[:,i], color=cmap_func(i))
+
+    
+    mappable = plt.cm.ScalarMappable(cmap=plt.get_cmap(cmap))
+    mappable.set_array([])  # To ensure the mappable's data range covers 0 to 1
+    cbar = plt.colorbar(mappable, ax=ax)
+    
+    # Adjust colorbar ticks to span from 0 to 100
+    cbar_ticks = np.linspace(0, 1, 11)  # e.g., [0, 0.1, 0.2, ... 1]
+    cbar.set_ticks(cbar_ticks)
+    cbar.set_ticklabels([f"{int(100*tick)}" for tick in cbar_ticks])
+    plt.show()
+
+def construct_centile_colormap(centile_values, colormap_name):
+    """
+    Construct a colormap based on the values in the centile array.
+    
+    Args:
+    - centile_values: array containing centile averages.
+    - colormap_name: name of the existing matplotlib colormap.
+    
+    Returns:
+    - ListedColormap object.
+    """
+    base_colormap = plt.cm.get_cmap(colormap_name)
+    
+    # Get colors from the existing colormap based on the centile values
+    colors = base_colormap(np.linspace(0, 1, len(centile_values)))
+    
+    return ListedColormap(colors)
+
+def plot_surf(data, lh, rh=None, size=(800, 200), title=None, crange=None, cmap='turbo',
+              save=None, show=True, cbar=True, interactive=False):
+    """
+    Plot surface data.
+    
+    Args:
+    - data (array): Data array to be plotted.
+    - lh (obj): Left hemisphere object.
+    - rh (obj, optional): Right hemisphere object. If present, plots the right hemisphere. Defaults to None.
+    - size (tuple, optional): Size of the plot. Defaults to (800, 200).
+    - title (str, optional): Title for the colorbar. Defaults to None.
+    - crange (tuple, optional): Color range. Defaults to None.
+    - cmap (str, optional): Colormap for the data. Defaults to 'turbo'.
+    - save (str, optional): Path to save the figure. If None, the figure is not saved. Defaults to None.
+    - show (bool, optional): Whether to show the figure. Defaults to True.
+    - cbar (bool, optional): Whether to show the colorbar. Defaults to True.
+    - interactive (bool, optional): Whether the plot should be interactive. Defaults to False.
+
+    Returns:
+    - None
+    """
+    
+    # Define common properties for the plot layers
+    common_layer_props = {
+        "color_range": crange,
+        "cmap": cmap,
+        "zero_transparent": False,
+        "cbar_label": title,
+        "cbar": cbar
+    }
+
+    if rh is not None:
+        p = sp.Plot(lh, rh, size=size, zoom=1.2, layout='row')
+        p.add_layer(data, **common_layer_props)
+    else:
+        # Adjust size for single hemisphere view
+        size = (400, 200) if size == (800, 200) else size
+        p = sp.Plot(lh, size=size, zoom=1.2, layout='row')
+        p.add_layer(data, **common_layer_props)
+
+    fig = p.build()
+
+    # Display and/or save the figure
+    if show:
+        fig.show()
+    if save:
+        fig.savefig(save)
+
+    return
+
+
+
 
 
 
@@ -203,7 +600,7 @@ def plot_lines_metric_vs_age_from_dict(fg,metric,name_list,net_names,metric_labe
         plot_lines_metric_vs_age_log(fg.ages,metric[:,inds],metric_label,net_names,subtract_mean,cmap,legend=legend)
         
         
-def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labels=['SA','VS','MR'],annotate_max=True,annotate_offset = 5):
+def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labels=['SA','VS','MR'],annotate_max=True,annotate_offset = 5,cmap=None):
     fig, ax = plt.subplots()
     #cmap = mcolors.ListedColormap(plt.get_cmap('tab10').colors)
     # Define the color cycle based on tab20 colormap
@@ -214,6 +611,8 @@ def plot_fits_w_ci_one_axis(fitages,fitmetrics,metric_name,std_error,metric_labe
     plt.rcParams['font.sans-serif'] = 'Helvetica'
     if metric_labels[0] == 'SA':
         colors = ['red','green','gray']
+    if cmap is not None:
+        colors = [cmap(i) for i in range (len(metric_labels))]
     for i in range(fitmetrics.shape[1]):
         ax.plot(np.log2(fitages + 1), fitmetrics[:,i],label=metric_labels[i],c = colors[i])
         
@@ -288,106 +687,7 @@ def plot_fitted_metric(indages, indmetric, fitages, fitmetric, metriclabel, std_
         xmax = x[xpos]
         ax.annotate(f'{fitages[xpos][0]} y', xy = (xmax,max(y)),xytext = (xmax,max(y)+shift), arrowprops=dict(arrowstyle='wedge',facecolor='red'),fontsize=18,color = 'red')
     plt.show()
-from plotnine import ggplot, aes, geom_point, scale_x_continuous, ggtitle, geom_line, scale_color_gradientn
-from mizani.transforms import trans
-    
-class Log1pTrans(trans):
-    @staticmethod
-    def transform(x):
-        return np.log1p(x)
 
-    @staticmethod
-    def inverse(x):
-        return np.expm1(x)
-
-
-# Function to create scatter plot
-def scatterplot_log_x_plus_1(ages, metric, metriclabel = 'metric'):
-    data = {
-        'age (years)': ages,
-        metriclabel: metric,
-    }
-    df = pd.DataFrame(data)
-
-    # Generate 10 equally spaced tick labels between min and max x values
-    x_ticks = np.linspace(np.min(ages), np.max(ages), 6)
-
-    scatterplot = (
-        ggplot(df, aes(x='age (years)', y=metriclabel))
-        + geom_point(size=0.5)
-        + scale_x_continuous(trans=Log1pTrans(), breaks=x_ticks, labels=x_ticks.astype(int))
-    )
-
-    return scatterplot
-
-def line_plot_log_x_plus_1( metric, metriclabel = 'metric'):
-    ages=np.arange(400)/4
-    data = {
-        'age (years)': ages,
-        metriclabel: metric,
-    }
-    df = pd.DataFrame(data)
-
-    # Generate 10 equally spaced tick labels between min and max x values
-    x_ticks = np.linspace(np.min(ages), np.max(ages), 6)
-
-    plot = (
-        ggplot(df, aes(x='age (years)', y=metriclabel))
-        + geom_line(size=1)
-        + scale_x_continuous(trans=Log1pTrans(), breaks=x_ticks, labels=x_ticks.astype(int))
-    )
-
-    return plot
-
-def line_plots_log_x_plus_1(metrics, metric_labels):
-    ages = np.arange(400) / 4
-
-    # Create a DataFrame with the age column and each metric column
-    data = {'age (years)': ages}
-    for metric, metric_label in zip(metrics, metric_labels):
-        data[metric_label] = metric
-    df = pd.DataFrame(data)
-
-    # Melt the DataFrame to have a long format suitable for ggplot
-    df_melted = pd.melt(df, id_vars=['age (years)'], value_vars=metric_labels, var_name='metric', value_name='value')
-
-    # Generate 10 equally spaced tick labels between min and max x values
-    x_ticks = np.linspace(np.min(ages), np.max(ages), 6)
-
-    plot = (
-        ggplot(df_melted, aes(x='age (years)', y='value', color='metric'))
-        + geom_line(size=1)
-        + scale_x_continuous(trans=Log1pTrans(), breaks=x_ticks, labels=x_ticks.astype(int))
-    )
-
-    return plot
-#from plotnine import ggplot, aes, geom_line, ggtitle, scale_color_gradientn
-#import matplotlib.cm as cm
-
-def plot_eigenvalues_by_age_gg(eigenvalues, ages):
-    # Create a pandas DataFrame from eigenvalues and ages
-    n_subjects, n_vals = eigenvalues.shape
-    data = {
-        'x': np.tile(np.arange(n_vals), n_subjects),
-        'y': eigenvalues.flatten(),
-        'age': np.repeat(ages, n_vals),
-        'subject': np.repeat(np.arange(n_subjects), n_vals)
-    }
-    df = pd.DataFrame(data)
-
-    # Get the 'magma' colormap from matplotlib and convert it to a list of colors
-    magma_colors = cm.get_cmap('plasma', 256)
-    colors = [magma_colors(i) for i in range(magma_colors.N)]
-
-    # Create a ggplot plot with eigenvalues as lines color-coded by subject age
-    plot = (
-        ggplot(df, aes(x='x', y='y', color='age', group='subject'))
-        + geom_line()
-        + ggtitle('Eigenvalues as Lines Color-coded by Subject Age')
-        + scale_color_gradientn(colors=colors)
-    )
-
-    return plot
 
 def plot_subject_data_and_fit(subject_data, subject_ages, fitted_data, age_atlas):
     if len(subject_data) != len(subject_ages):
@@ -445,7 +745,11 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.colorbar import ColorbarBase
 from matplotlib.colors import Normalize
 
-def plot_network_kdes_longitudinal(grads,net_names,net_labels,colormap,title='kde plots',x_min=-1,x_max = 1.5,sort_by_rank=True,timepoints = np.arange(50)*8,agemin=0, agemax=25,sorted_indices=None,return_indices=False):
+def plot_network_kdes_longitudinal(grads,net_names,net_labels,colormap,title='kde plots',x_min=None,x_max = None,sort_by_rank=True,timepoints = np.arange(50)*8,agemin=0, agemax=25,sorted_indices=None,return_indices=False):
+    if x_min is None:
+        x_min = np.min(grads)
+    if x_max is None:
+        x_max = np.max(grads)
     num_rows = len(net_names)-1
     num_cols = 1
     fig, axs = plt.subplots(num_rows, num_cols, figsize=(10, 2*len(net_names)),sharex=True)
@@ -516,17 +820,27 @@ yeo7_colors = np.array([
     (120, 18, 134)   # Vis
 ])/255
 
+#yeo7_colors_3d =np.array([
+#    (0, 0, 0),  # medial wall
+#    (200, 200, 200),  # cont
+#    (255, 80, 80),  # default
+#    (130, 100, 200),  # DorsAttn
+#    (220, 128, 85),  # Limbic
+#    (50, 100, 50),  # SalVenAttn
+#    (0, 255, 0),  # SomMot
+#    (0, 0, 255)   # Vis
+#])/255
+
 yeo7_colors_3d =np.array([
     (0, 0, 0),  # medial wall
-    (200, 200, 200),  # cont
-    (255, 80, 80),  # default
-    (130, 100, 200),  # DorsAttn
-    (220, 128, 85),  # Limbic
-    (50, 100, 50),  # SalVenAttn
-    (0, 255, 0),  # SomMot
-    (0, 0, 255)   # Vis
+    (139, 160, 164),  # cont
+    (207, 53, 80),  # default
+    (95, 68, 137),  # DorsAttn
+    (207, 103, 71),  # Limbic
+    (68, 137, 95),  # SalVenAttn
+    (110, 164, 25),  # SomMot
+    (25, 110, 164)   # Vis
 ])/255
-
  
 yeo17_colors =np.array([
     [  0.,   0.,   0.],

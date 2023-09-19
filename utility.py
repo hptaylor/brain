@@ -406,8 +406,9 @@ def get_grad_poles(grads,percent):
         bottominds = bottom_k_indices(grads[:,i], keep_num)
         result[topinds,i] = 1
         result[bottominds,i] = -1 
+        result[result[:,i]==0,i] = np.nan
     return result 
-    
+
 def gradient_pole_trajectories(gradlist,percent,ref_grads,std_errors=None,return_range=True):
     result = np.zeros((gradlist.shape[0],gradlist.shape[2],2))
     ##topresult = np.zeros((gradlist.shape[0],gradlist.shape[2]))

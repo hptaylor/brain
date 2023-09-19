@@ -38,15 +38,20 @@ class GammFit:
         Number of dimensions in the data
     """
 
-    def __init__(self, directory, metricname, maxage=100, minage=0, ntimepoints=400, ndim=3):
+    def __init__(self, directory, metricname, maxage=100, minage=0, ntimepoints=400, ndim=3, cohort = True):
         self.fit = uts.load_gamm_fit(f'{directory}{metricname}_fit_3M.csv', ndim)
         self.std_error = uts.load_gamm_fit(f'{directory}{metricname}_standard_error_3M.csv', ndim)
 
         self.rsquared = pd.read_csv(f'{directory}{metricname}_rsq_3M.csv')['x'].to_numpy()
         self.metric = uts.load_subj_metric_from_csv(f'{directory}{metricname}.csv', ndim)
         self.indages = pd.read_csv(f'{directory}{metricname}.csv')['Age'].to_numpy()
-        self.cohort_id = pd.read_csv(f'{directory}{metricname}.csv')['Cohort_ID'].to_numpy()
-        self.cohort_effect = uts.load_cohort_effect(f'{directory}{metricname}_cohort_effect.csv')
+        
+        
+        if cohort:
+            self.cohort_id = pd.read_csv(f'{directory}{metricname}.csv')['Cohort_ID'].to_numpy()
+            self.cohort_effect = uts.load_cohort_effect(f'{directory}{metricname}_cohort_effect.csv')
+            for i in range (ndim):
+                self.metric[:,i] = uts.apply_cohort_shift(self.metric[:,i],self.cohort_id,self.cohort_effect)
         self.ages = np.arange(ntimepoints) / (ntimepoints / (maxage - minage))
         self.name = metricname
         self.ndim = ndim 
@@ -54,29 +59,21 @@ class GammFit:
         # Check the shapes of the arrays
         assert self.fit.shape[0] == self.std_error.shape[0] == self.ages.shape[0], "Mismatch in shape of input arrays"
     
-    def plot_fit(self, shift=True,offset=20):
-        """
-        Plots the fitted GAMM, with or without a cohort shift.
-
-        Parameters:
-        ----------
-        shift : bool
-            Whether to apply a cohort shift to the metric (default is True)
-        """
-        if not shift:
-            for i in range(self.ndim):
-                pltg.plot_fitted_metric(self.indages, self.metric[:, i], self.ages, self.fit[:, i], f'{self.name} {i+1}', self.std_error[:, i],shift=offset)
+    def plot_with_subject_data(self, ylabel = None, metric_names = None, fit_colors = ['r','g','b'],fit_names = ['SA','VS','MR']):
+        subject_data = self.metric
+        
+            
+        if self.ndim == 1:
+            pltg.plot_fit_with_data(self.fit,self.std_error,subject_data,self.indages,ylabel = ylabel, fit_names = fit_names)
         else:
-            for i in range(self.ndim):
-                if i == 1:
-                    mark_max = False
-                else:
-                    mark_max = True 
-                shifted_metric = uts.apply_cohort_shift(self.metric[:, i], self.cohort_id, self.cohort_effect[:, i])
-                pltg.plot_fitted_metric(self.indages, shifted_metric, self.ages, self.fit[:, i], f'{self.name} {i+1}', self.std_error[:, i],annotate_max=mark_max,shift=offset)
-
-    def plot_fits(self):
-        """
-        Plots the fits of the GAMM with a confidence interval.
-        """
-        pltg.plot_fits_w_ci_one_axis(self.ages, self.fit, self.name, self.std_error)
+            pltg.plot_fits_separately(self.fit,self.std_error,subject_data,self.indages,ylabel=ylabel, fit_names = fit_names, fit_colors = fit_colors)
+    
+    def plot_fits(self, fit_names = ['SA', 'VS', 'MR'], cmap = None, ylabel = None, fit_colors = ['r','g','b']):
+        
+        if not ylabel:
+            ylabel = self.name
+        if cmap:
+            fit_colors = [cmap(i) for i in range (self.ndim)]
+        
+        pltg.plot_multiple_fits(self.fit,self.std_error,fit_names=fit_names,fit_colors=fit_colors,ylabel=ylabel)
+   

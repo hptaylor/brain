@@ -557,7 +557,10 @@ def read_cifti_timeseries_masked(file):
     time_series=np.array(time_series.dataobj)[:,:59412]
     return time_series.T
 
-
+def read_cifti_arr(file):
+    data=nib.load(file)
+    data=np.array(data.dataobj)
+    return data.T
 def read_streamline_endpoints(filename):
     #reads endpoint locations of vtk file containing only the endpoints of a tractogram. returns numpy array of size (nEndpoints,3). 
     #endpoint 0 and endpoint 1 correspond to the same fiber. endpoint 2, endpoint 3 correspond to the same fiber... etc 
@@ -587,11 +590,15 @@ def split_vtk_feature_to_hems(path,fname):
     save_surface(path+'rh_'+fname,rsc,rsi,feature[int(len(sc)/2):])
     return 
 
-def save_gifti_surface(sc,si,fname,hcp=False):
+def save_gifti_surface(sc,si,fname,hcp=False,hem = 'lh'):
+    if hem == 'lh':
+        anat_structure = 'CortexLeft'
+    if hem == 'rh':
+        anat_structure = 'CortexRight'
     pmeta = {
-        'description': 'anything',      # brief info here
-        'GeometricType': 'Anatomical',  # an actual surface; could be 'Inflated', 'Hull', etc
-        'AnatomicalStructurePrimary': 'CortexLeft', # the specific structure represented
+    	'description': 'anything',      # brief info here
+    	'GeometricType': 'Anatomical', 	# an actual surface; could be 'Inflated', 'Hull', etc
+        'AnatomicalStructurePrimary': anat_structure, # the specific structure represented
         'AnatomicalStructureSecondary': 'GrayWhite', # if the above field is not specific enough
     }
     
@@ -608,10 +615,10 @@ def save_gifti_surface(sc,si,fname,hcp=False):
     pcoord = nib.gifti.GiftiCoordSystem(1,1)    # surface is in world mm coordinates
     
     parray = nib.gifti.GiftiDataArray(sc, 
-        intent='NIFTI_INTENT_POINTSET',                     # represents a set of points
-        coordsys=pcoord,                                    # see above
-        datatype='NIFTI_TYPE_FLOAT32',                      # float type data 
-        meta=nib.gifti.GiftiMetaData.from_dict(pmeta)   # again, see above. 
+    	intent='NIFTI_INTENT_POINTSET', 	                # represents a set of points
+    	coordsys=pcoord,	                                # see above
+    	datatype='NIFTI_TYPE_FLOAT32',                      # float type data 
+    	meta=nib.gifti.GiftiMetaData.from_dict(pmeta)   # again, see above. 
     ) 
     
     # The triangles array
@@ -665,6 +672,43 @@ def save_gifti_scalar(scalar,fname):
     nib.save(gii, fname)
     return 
 
+def save_gifti_func(func,fname,hem='lh'):
+    if hem == 'lh':
+        anat_structure = 'CORTEX_LEFT'
+    if hem == 'rh':
+        anat_structure = 'CORTEX_RIGHT'
+    pmeta = {
+    	'description': 'anything',      # brief info here
+    	'GeometricType': 'Anatomical', 	# an actual surface; could be 'Inflated', 'Hull', etc
+        'AnatomicalStructurePrimary': anat_structure, # the specific structure represented
+        'AnatomicalStructureSecondary': 'GrayWhite', # if the above field is not specific enough
+    }
+    
+    pcoord = nib.gifti.GiftiCoordSystem(1,1)    # surface is in world mm coordinates
+    plist = []
+    for i in range (func.shape[1]):
+        parray = nib.gifti.GiftiDataArray(func[:,i], 
+        	intent='NIFTI_INTENT_POINTSET', 	                # represents a set of points
+        	coordsys=pcoord,	                                # see above
+        	datatype='NIFTI_TYPE_FLOAT32',                      # float type data 
+        	meta=nib.gifti.GiftiMetaData.from_dict(pmeta)   # again, see above. 
+        ) 
+        plist.append(parray)
+    
+    # Finally, create the GiftiImage object and save
+    
+    gii = nib.gifti.GiftiImage(darrays=plist)
+    nib.save(gii, fname)
+    return 
+
+def downsample_fmri_gifti(filename,savepath,hem,keep_num = 10242):
+    f = nib.load(filename)
+    func = np.array([d.data[:10242] for d in f.darrays]).T
+    
+    save_gifti_func(func,filename,hem)
+    
+    
+    
 def gifti_to_scalar(L,R): 
     l=L.darrays
     r=R.darrays
