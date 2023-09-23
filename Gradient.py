@@ -10,7 +10,7 @@ import numpy as np
 from scipy import sparse 
 import scipy.stats as ss 
 import brainspace as bs 
-
+from parcellated_analysis import *
 import reading_writing as rw 
 import matrix_comp as mtx 
 import utility as uts 
@@ -104,6 +104,11 @@ class Gradient:
         print(f'ID {self.string}')
         print(f'{self.nvert} vertices, {self.ngrad} gradients')
         return 
+    
+    def parc_grads(self,parc):
+        
+        return compute_parcel_mean(self.garray,parc)
+    
     
     def compute_FC_from_fMRI(self, lh_fmri_path, rh_fmri_path, threshold =0.03, 
                              chunk_size = 1000, symmetric = True, size =20484, 

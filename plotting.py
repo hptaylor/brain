@@ -134,7 +134,8 @@ def plot_subject_data(subject_data, subject_ages, color='black', marker='o', mar
 
 
 def plot_fit_with_data(fit, std_error=None, subject_data=None, subject_ages=None, 
-                       fit_color='r', ci_alpha=0.2, age_factor=4, ylabel=None, fig=None, ax=None, **kwargs):
+                       fit_color='r', ci_alpha=0.2, age_factor=4, ylabel=None,
+                       max_hdi_bounds=None, max_marker_color='black',fig=None, ax=None, **kwargs):
     """
     Plots a fit (and optionally its confidence interval) on a prepared log axis. 
     If subject data and ages are provided, they are plotted as a scatter plot.
@@ -177,7 +178,23 @@ def plot_fit_with_data(fit, std_error=None, subject_data=None, subject_ages=None
     if std_error is not None:
         lower_bound, upper_bound = stu.compute_confidence_interval(fit, std_error)
         ax.fill_between(log_ages, lower_bound, upper_bound, color=fit_color, alpha=ci_alpha)
-
+    if max_hdi_bounds is not None:
+        max_age_index = uts.find_nearest_index(np.arange(len(fit))/4,(max_hdi_bounds[0]+max_hdi_bounds[1])/2)
+        
+        ax.plot(log_ages[max_age_index], fit[max_age_index], 'o', 
+                color=max_marker_color, markersize=8, label='_nolegend_')
+        
+        # Convert the HDI bounds to log2 scale
+        log_lower_bound = np.log2(max_hdi_bounds[0] + 1)
+        log_upper_bound = np.log2(max_hdi_bounds[1] + 1)
+        
+        # Calculate the errors for lower and upper bounds relative to the maximum age index
+        lower_error = log_ages[max_age_index] - log_lower_bound
+        upper_error = log_upper_bound - log_ages[max_age_index]
+    
+        # Draw horizontal error bars for the HDI of the age at which maximum fit occurs
+        ax.errorbar(log_ages[max_age_index], fit[max_age_index], xerr=[[lower_error], [upper_error]], 
+                    fmt='o', color=max_marker_color, capsize=10,  elinewidth= 3)
     # If ylabel is provided, set the y-axis label
     if ylabel:
         ax.set_ylabel(ylabel)
@@ -187,7 +204,8 @@ def plot_fit_with_data(fit, std_error=None, subject_data=None, subject_ages=None
     return fig, ax
 
 def plot_multiple_fits(fits, std_errors=None, subject_data=None, subject_ages=None, 
-                       fit_names=None, fit_colors=None, age_factor=4, ylabel=None, **kwargs):
+                       fit_names=None, fit_colors=None, age_factor=4, 
+                       ylabel=None, max_hdi_bounds = None, **kwargs):
     """
     Plot multiple fits (and optionally their confidence intervals) on the same axis.
 
@@ -204,34 +222,39 @@ def plot_multiple_fits(fits, std_errors=None, subject_data=None, subject_ages=No
     Returns:
     - fig, ax: Figure and axis objects with the plotted data and fits.
     """
+    bounds = max_hdi_bounds[0] if max_hdi_bounds is not None else None
     
     # Create the initial plot (with the first fit or just the subject data)
     fig, ax = plot_fit_with_data(fits[:, 0], 
                                  std_errors[:, 0] if std_errors is not None else None,
                                  subject_data, subject_ages, 
-                                 fit_color=fit_colors[0] if fit_colors else 'r',
+                                 fit_color=fit_colors[0] if fit_colors is not None else 'r',
                                  ylabel=ylabel,
+                                 max_hdi_bounds=bounds,
                                  age_factor=age_factor, 
                                  **kwargs)
     
     # Plot the remaining fits
     for i in range(1, fits.shape[1]):
         color = fit_colors[i] if fit_colors else 'r'
+        bounds = max_hdi_bounds[i] if max_hdi_bounds is not None else None
         plot_fit_with_data(fits[:, i], 
                            std_errors[:, i] if std_errors is not None else None,
                            fig=fig, ax=ax, 
                            fit_color=color,
+                           max_hdi_bounds=bounds,
                            age_factor=age_factor, 
                            **kwargs)
     
     # Add legend if fit names are provided
-    if fit_names:
+    if fit_names is not None:
         ax.legend(fit_names)
     
     return fig, ax
 
 def plot_fits_separately(fits=None, std_errors=None, subject_data=None, subject_ages=None, 
-                         fit_names=None, fit_colors=None, age_factor=4, ylabel=None, **kwargs):
+                         fit_names=None, fit_colors=None, age_factor=4, 
+                         ylabel=None, max_hdi_bounds = None, **kwargs):
     """
     Plot each fit (and optionally its confidence interval) on separate axes.
 
@@ -248,7 +271,7 @@ def plot_fits_separately(fits=None, std_errors=None, subject_data=None, subject_
     Returns:
     - fig: Figure object with the plotted data and fits on separate axes.
     """
-    if fits:
+    if fits is not None:
         n_fits = fits.shape[1]
     else:
         n_fits = subject_data.shape[1]
@@ -264,11 +287,13 @@ def plot_fits_separately(fits=None, std_errors=None, subject_data=None, subject_
     # For each fit, plot it on its corresponding axis
     for i in range(n_fits):
         color = fit_colors[i] if fit_colors else 'r'
-        if fits:
+        bounds = max_hdi_bounds[i] if max_hdi_bounds is not None else None
+        if fits is not None:
             _, ax = plot_fit_with_data(fits[:, i], 
                                        std_errors[:, i] if std_errors is not None else None,
                                        subject_data[:,i], subject_ages, 
                                        fit_color=color, ylabel=ylabel if i==0 else None,
+                                       max_hdi_bounds=bounds,
                                        age_factor=age_factor, 
                                        fig=fig, ax=axes[i], 
                                        **kwargs)
@@ -293,7 +318,7 @@ def plot_fits_separately(fits=None, std_errors=None, subject_data=None, subject_
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
         # Set title for each axis if fit_names are provided
-        if fit_names:
+        if fit_names is not None:
             ax.set_title(fit_names[i])
     
     # Adjust the layout to prevent overlap
@@ -986,3 +1011,7 @@ def parc_avg_cmap(grads,parc):
     colors3d_parc = uts.get_parcellated_cmap(parc,colors3d)
     
     return colors3d_parc
+
+sa_max_options = [False, True, True, False, True, False, False, False]
+
+mr_max_options = [False, True, False, True, False, True, False, False]

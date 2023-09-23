@@ -513,7 +513,7 @@ def read_functional_timeseries(lhfunc,rhfunc,v2s=True):
             timeseries[:, i] = tp
         return timeseries
     
-def read_timeseries(file,*args):
+def read_timeseries(file,keep_num= 59412, *args):
     '''loads N_vert x N_timepoints matrix of surface mapped fmri 
     values for .gii or .nii (cifti). For .gii, both left and right
     hemisphere paths must be provided in that order. For cifti 
@@ -536,9 +536,19 @@ def read_timeseries(file,*args):
             
     if file.endswith('.nii') or file.endswith('.nii.gz'):
         time_series=nib.load(file)
-        time_series=np.array(time_series.dataobj)[:,:59412]
+        time_series=np.array(time_series.dataobj)[:,:keep_num]
         return time_series.T
-        
+   
+
+def mask_from_timeseries_zero(ts):
+    
+    mask = np.zeros(len(ts))
+    
+    zeroinds = np.where(ts[:,0]==0.0)[0]
+    
+    mask[zeroinds]=1
+    return mask
+     
 def read_and_concatenate_timeseries(lh1,rh1,lh2,rh2):
     ts1=read_timeseries(lh1,rh1)
     m1=mask_from_timeseries_zero(ts1)
@@ -703,7 +713,7 @@ def save_gifti_func(func,fname,hem='lh'):
 
 def downsample_fmri_gifti(filename,savepath,hem,keep_num = 10242):
     f = nib.load(filename)
-    func = np.array([d.data[:10242] for d in f.darrays]).T
+    func = np.array([d.data[:keep_num] for d in f.darrays]).T
     
     save_gifti_func(func,filename,hem)
     
@@ -919,310 +929,7 @@ def combine_pe(ts_lr, ts_rl):
 
 
 #from matrix_compute import construct_inter_hemi_matrix
-#from scipy import sparse
-def mask_from_parc_bcp(parc):
-    if len(parc.shape)==2:
-        parc=parc[:,0]
-    mask=np.zeros(len(parc))
-    mask[parc==-100]=1
-    return mask
 
-def generate_mask_from_parc_bcp(lhparc,rhparc):
-    parc=read_gifti_feature_both_hem(lhparc,rhparc).astype('int32')
-    inds1=np.where(parc==1639705)[0]
-    inds3=np.where(parc==1639704)[0]
-    inds2=np.where(parc==3294840)[0]
-    inds4=np.where(parc==3294839)[0]
-    mask=np.zeros(len(parc))
-    mask[inds1]=1
-    mask[inds2]=1
-    mask[inds3]=1
-    mask[inds4]=1
-    return mask 
-
-#bcpmask=generate_mask_from_parc_bcp('/Users/patricktaylor/Documents/lifespan_analysis/misc/Atlas_12Months_lh.desikan.downsampled.L5.func.gii','/Users/patricktaylor/Documents/lifespan_analysis/misc/Atlas_12Months_rh.desikan.downsampled.L5.func.gii')
-
-#def get_bcp_mask():
-#     bcpmask=generate_mask_from_parc_bcp('/Users/patricktaylor/Documents/BCP_Bin_SC/Atlas_12Months_lh.parcellation.downsampled.func.gii','/Users/patricktaylor/Documents/BCP_Bin_SC/Atlas_12Months_rh.parcellation.downsampled.func.gii')
-#     return bcpmask
- 
-def generate_mask_from_parc_hcp(lhparc,rhparc):
-    parc=read_gifti_feature_both_hem(lhparc,rhparc).astype('int32')
-    inds1=np.where(parc==-100)[0]
-    inds2=np.where(parc==3250)[0]
-    mask=np.zeros(len(parc))
-    mask[inds1]=1
-    mask[inds2]=1
-    return mask 
-
-#hcpmask=generate_mask_from_parc_hcp('/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.DesikanParc.ver2.L5.func.gii','/Users/patricktaylor/Documents/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.DesikanParc.ver2.L5.func.gii')
-
-
-def get_hcp_mask():
-    mask = generate_mask_from_parc_hcp('/Volumes/OrangeDrive/HCP_orig_Structural/105923/MNINonLinear/fsaverage_LR32k/105923.L.aparc.32k_fs_LR.label.gii','/Volumes/OrangeDrive/HCP_orig_Structural/105923/MNINonLinear/fsaverage_LR32k/105923.R.aparc.32k_fs_LR.label.gii')
-    return mask
-
-def mask_from_timeseries_zero(ts):
-    
-    mask = np.zeros(len(ts))
-    
-    zeroinds = np.where(ts[:,0]==0.0)[0]
-    
-    mask[zeroinds]=1
-    return mask
-
-
-    
-
-def read_microstructure_vecs(path,types=['SMSI_ECVF','SMSI_ICVF','SMSI_IVF'],myelin=None):
-    mslist=[]
-    for Type in types:
-        lpath = path % ('lh', Type)
-        rpath = path % ('rh', Type)
-        vec = read_gifti_feature_both_hem(lpath, rpath)
-        vec= np.nan_to_num(vec)
-        mslist.append(vec)
-    if myelin is not None:
-        my=read_gifti_feature_both_hem(myelin % 'lh',myelin %'rh')
-        mslist.append(my)
-    msvecs = np.hstack(tuple(mslist))
-    return msvecs
-    
-def save_parcellation_with_color_map(filename,refPoints,savepoints,edges,Labels,indices,distances,blackout,tol=3.5):
-    '''
-    Saves whole-surface color-mapped parcellation 'Labels' vtk file on surface given by savepoints and edges. 
-    Uses EucDist, Cmap, triangle_area, and get_vertex_color
-    '''
-    colors=color_map(Labels,refPoints)
-    if blackout:
-        for i in range (len(distances)):
-            if distances[i]<tol:
-                colors[indices[i]]=np.array([0,0,0])
-    mesh = tvtk.PolyData(points=savepoints, polys=edges)
-    Colors=tvtk.UnsignedCharArray()
-    Colors.from_array(colors)
-    mesh.point_data.scalars = Colors
-    mesh.point_data.scalars.name = 'colors'
-    labs=tvtk.UnsignedCharArray()
-    labs.from_array(Labels)
-    mesh.point_data.add_array(labs)
-    write_data(mesh,filename)
-    return
-
-#from utility_functions import neighbors
-from sklearn.preprocessing import label_binarize
-
-def save_colormapped_parcellation_to_hems(path,filename,refPoints,savepoints,edges,Labels,blackout=False):
-    '''
-    Saves left and right hemisphere of color-mapped parcellation 'Labels' vtk file on surface given by savepoints and edges. 
-    Uses EucDist, Cmap, triangle_area, and get_vertex_color
-    '''
-    #colors=color_map(Labels,refPoints)
-    half=int(len(Labels)/2)
-    li,ld=neighbors(refPoints[:half],refPoints[half:],1)
-    ri,rd=neighbors(refPoints[half:],refPoints[:half],1)
-    H=int(len(edges)/2)
-    #c1=colors[:half]
-    #c2=colors[half:]
-    p1=refPoints[:half]
-    p2=refPoints[half:]
-    k1=savepoints[:half]
-    k2=savepoints[half:]
-    Filename=path+'L_'+filename
-    save_parcellation_with_color_map(Filename,p1,k1,edges[:H],Labels[:half],li,ld,blackout)
-    Filename=path+'R_'+filename
-    save_parcellation_with_color_map(Filename,p2,k2,edges[:H],Labels[half:],ri,rd,blackout)
-
-    return 
-
-def eucdist(u,v):
-    dist=((u[0]-v[0])**2+(u[1]-v[1])**2+(u[2]-v[2])**2)**.5
-    return dist
-    
-
-def color_map(Labs,Asc):
-    half=int(len(Asc)/2)
-    x=np.arange(0,max(Labs)+1)
-    #color map can be altered by varying the location of the "reference locations", given by variables Front, Par, Temp
-    Front=np.array([76,135,174])
-    Par=np.array([77,46,216])
-    Temp=np.array([81,1,139])
-    Bin=label_binarize(Labs,x)
-    colors=np.zeros((half*2,3))
-    for i in range (len(Bin[0,:])):
-        nz=np.nonzero(Bin[:,i])
-        meanPos=(np.mean(Asc[nz,:],1)).T
-        Fd=eucdist(meanPos,Front)
-        Pd=eucdist(meanPos,Par)
-        Td=eucdist(meanPos,Temp)
-        l=[Fd,Pd,Td]
-        f2p=eucdist(Front,Par)
-        p2t=eucdist(Par,Temp)
-        f2t=eucdist(Front,Temp)
-        r,g,b=get_vertex_color(f2p,p2t,f2t,Fd,Pd,Td)
-        colors[nz,0]=r
-        colors[nz,1]=g
-        colors[nz,2]=b
-    return colors
-        
-def triangle_area(len1, len2, len3):
-    p = (len1 + len2 + len3)/2
-    area = (p*(p-len1)*(p-len2)*(p-len3))**(0.5)
-    return area
-
-def get_vertex_color(f2p, p2t, f2t, v2f, v2p, v2t): #f2p: frontal to parietal distance, scalar
-                                                    #p2t: parietal to temporal distance, scalar
-                                                    #f2t: frontal to temporal distance, scalar
-                                                    #v2f: current vertex to frontal distance, scalar
-                                                    #v2p: current vertex to parietal distance, scalar
-                                                    #v2f: current vertex to temporal distance, scalar
-    area_whole = triangle_area(f2p,p2t,f2t)
-    area_f = triangle_area(p2t, v2p, v2t)
-    area_p = triangle_area(f2t, v2f, v2t)
-    area_t = triangle_area(f2p, v2f, v2p)
-    
-    red = min(area_f/area_whole,1)*255
-    green = min(area_p/area_whole,1)*255
-    blue = min(area_t/area_whole,1)*255
-    
-    return red,green,blue
-
-#import utility_functions as uts
-
-def save_evec_to_vtk(filename,agerange,atlasmonth):
-    valsvecs=np.load(filename,allow_pickle=True)
-    vals=valsvecs[0]
-    vecs=valsvecs[1]
-    mask=generate_mask_from_parc_bcp('/Users/patricktaylor/Documents/bcp_cosine_FC_vecs/Atlas_12Months_lh.parcellation.downsampled.func.gii','/Users/patricktaylor/Documents/bcp_cosine_FC_vecs/Atlas_12Months_rh.parcellation.downsampled.func.gii')
-    unmaskvecs=uts.unmask_medial_wall_vecs(vecs,mask)
-    
-    sc,si=read_vtk_surface_both_hem('/Users/patricktaylor/Documents/bcp_cosine_FC_vecs/Atlas_%sMonths_lh.InflatedSurf.nifti.newscans.downsampled.vtk' % atlasmonth, '/Users/patricktaylor/Documents/bcp_cosine_FC_vecs/Atlas_%sMonths_rh.InflatedSurf.nifti.newscans.downsampled.vtk' % atlasmonth)
-    name1='/Users/patricktaylor/Documents/bcp_cosine_FC_vecs/%s.'
-    name2='%s_cosine_vecs.vtk' % agerange
-    save_eigenvector_to_hems(name1+name2 ,sc,si,unmaskvecs)
-    return
-
-#from pymatreader import read_mat 
-from scipy import sparse
-
-import h5py 
-
-def load_matlab_mat(filename):
-    hf=h5py.File(filename,'r')
-    d=hf.get('connectivity')
-    r=d[0]-1
-    c=d[1]-1
-    v=d[2]
-    
-    m=sparse.csr_matrix((v,(r,c)),shape=(81924,81924))
-    
-    return m 
-    
-
-def load_matlab_file(path_file, name_field):
-    """
-    load '.mat' files
-    inputs:
-        path_file, string containing the file path
-        name_field, string containig the field name (default='shape')
-    warning:
-        '.mat' files should be saved in the '-v7.3' format
-    """
-    db = h5py.File(path_file, 'r')
-    ds = db[name_field]
-    try:
-        if 'ir' in ds.keys():
-            data = np.asarray(ds['data'])
-            ir = np.asarray(ds['ir'])
-            jc = np.asarray(ds['jc'])
-            out = sparse.csc_matrix((data, ir, jc)).astype(np.float32)
-    except AttributeError:
-        # Transpose in case is a dense matrix because of the row- vs column- major ordering between python and matlab
-        out = np.asarray(ds).astype(np.float32).T
-
-    db.close()
-
-    return out 
-
-
-'''
-
-
-def load_matlab_sparse_matrix(filename):
-    dictionary = read_mat(filename)
-    
-    d=dictionary['connectivity']['data']
-    r=dictionary['connectivity']['ir']
-    c=dictionary['connectivity']['jc']
-    m=sparse.csc_matrix((d,(r,c)),shape=(81924,81924))
-    
-    return m 
-
-'''
-
-def load_hcp_most_prevalent_harmonics():
-    vecdic={}
-    groups=['40','80sec','2min','3.5min','retest_40','retest_80sec','retest_2min','retest_3.5min']
-    
-    for g in groups:
-        
-        vecdic[g]=np.load(f'/Users/patricktaylor/Documents/HCP_func_gradient/results/{g}_group_pca_harmonics.npy')
-    
-    return vecdic
-
-
-def load_lifespan_most_prevalent_harmonics():
-    vecdic={}
-    groups=['/Users/patricktaylor/Documents/HCPD/results/6Y_most_prevalent_harmonics.npy','/Users/patricktaylor/Documents/HCPD/results/7Y_most_prevalent_harmonics.npy','/Users/patricktaylor/Documents/HCPD/results/8Y_most_prevalent_harmonics.npy','/Users/patricktaylor/Documents/HCPD/results/12Y_most_prevalent_harmonics.npy','/Users/patricktaylor/Documents/HCPD/results/16Y_most_prevalent_harmonics.npy','/Users/patricktaylor/Documents/HCPD/results/20Y_most_prevalent_harmonics.npy','/Users/patricktaylor/Documents/HCPA/results/40Y_2min_window_evecs.npy','/Users/patricktaylor/Documents/HCPA/results/60Y_2min_window_evecs.npy','/Users/patricktaylor/Documents/HCPA/results/80Y_2min_window_evecs.npy','/Users/patricktaylor/Documents/HCPA/results/100Y_2min_window_evecs.npy']
-    names=['6Y','7Y','8Y','12Y','16Y','20Y','40Y','60Y','80Y','100Y']
-    for i in range(len(groups)):
-        
-        vecdic[names[i]]=np.load(groups[i])
-    
-    return vecdic
-    
-from brainspace.datasets import load_conte69
-from brainspace.plotting import plot_hemispheres
-import brainspace as bs
-
-def plot_surface_brainspace(feature,mask,unmask=True,filename=None,hcpd=True,bcp=False,veryinflated=False):
-    if hcpd:
-        surf_lh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_L.veryinflated.white.ver2.downsampled.L5.surf.gii')
-        surf_rh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/lifespan_analysis/Lifespan_Atlases/Atlas_420Months_R.veryinflated.white.ver2.downsampled.L5.surf.gii')
-            
-    if bcp:
-        surf_lh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/BCP_preprocessed_fMRI/newfiles/Atlas_12Months_L.veryinflated.white.ver2.L5.surf.gii')
-        surf_rh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/BCP_preprocessed_fMRI/newfiles/Atlas_12Months_R.veryinflated.white.ver2.L5.surf.gii')
-    if veryinflated:
-        surf_lh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/lifespan_analysis/105923.L.very_inflated_MSMAll.32k_fs_LR.surf.gii')
-        surf_rh=bs.mesh.mesh_io.read_surface('/Users/patricktaylor/lifespan_analysis/105923.R.very_inflated_MSMAll.32k_fs_LR.surf.gii')
-    else:
-        surf_lh, surf_rh = load_conte69()
-    
-    if feature.shape[1]>1:
-        if unmask:
-            feature=uts.unmask_medial_wall_vecs(feature,mask)
-        feature=[feature[:,i] for i in range (feature.shape[1])]
-    
-    else:
-        if unmask:
-            feature=uts.unmask_medial_wall(feature,mask)
-    
-    if filename:
-        screenshot=True
-        scale=1
-    else:
-        screenshot=False
-        scale=1
-    if screenshot:
-        transparent_bg=True
-    else:
-        transparent_bg=False
-    
-    plot_hemispheres(surf_lh,surf_rh,array_name=feature, cmap='jet',color_bar=True ,screenshot=screenshot,filename=filename,transparent_bg=transparent_bg,scale=scale)
-    
-    return
-        
         
 
 

@@ -10,6 +10,7 @@ import reading_writing as rw
 import utility as uts 
 import numpy as np 
 from brainspace.gradient.alignment import procrustes
+from scipy.stats import spearmanr 
 import brainspace as bs
 import Gradient 
 import pandas as pd 
@@ -252,13 +253,16 @@ class GradientSet:
         for i, g in enumerate(self.dtable['grads']):
             disps[i] = g.get_dispersion_parc(parc,ndim)
         return disps 
-    def get_mean_value_parc(self,parc):
-        vals = np.zeros((self.length,np.unique(parc).shape[0],3))
+    def get_mean_value_parc(self,parc,ndim=3):
+        vals = np.zeros((self.length,np.unique(parc).shape[0],ndim))
+        indslist = []
         for z in range(np.unique(parc).shape[0]):
             inds = np.where(parc == z)[0]
-            for i, g in enumerate(self.dtable['grads']):
-                for j in range (3):
-                    vals[i,z,j] = np.mean(g.garray[inds,j])
+            indslist.append(inds)
+        for i, g in enumerate(self.dtable['grads']):
+            for z in range (len(indslist)):
+                for j in range (ndim):
+                    vals[i,z,j] = np.mean(g.garray[indslist[z],j])
         return vals
                 
     
@@ -516,12 +520,20 @@ class GradientSet:
         for g in self.dtable['grads']:
             g.garray = smoothing_mat.dot(g.garray)
             
-    def get_cos_sim_w_template(self):
-        cossims = np.zeros((self.length,self.ngrad))
+    def get_cos_sim_w_template(self,ndim=3):
+        cossims = np.zeros((self.length,ndim))
         for i,g in enumerate(self.dtable['grads']):
             for j in range (cossims.shape[1]):
                 cossims[i,j] = uts.cos_norm(g.garray[:,j],self.template_grads[:,j])
         return cossims 
+    def get_spearman_w_template(self,return_p = False,ndim=3):
+        spearmans = []
+        for i,g in enumerate(self.dtable['grads']):
+            sps = []
+            for j in range (ndim):
+                sps.append(spearmanr(g.garray[:,j],self.template_grads[:,j])[0])
+            spearmans.append(sps)
+        return np.array(spearmans)
     
     def get_template_clustering(self, nclust = 7, clust_type = 'HAC'):
         if clust_type == 'HAC':
@@ -547,7 +559,10 @@ class GradientSet:
         f = pltg.plot_fits_separately(subject_data=cossims[:,:3],subject_ages=self.ages,fit_colors=['r','g','b'],fit_names=['SA','VS','MR'],ylabel='cos sim')
         #for i in range (n):
         #    pltg.plot_metric_vs_age_log(self.ages,cossims[:,i],f'G{i+1} cosine sim')
-            
+    def plot_spearmanr_to_template(self,n=3):
+        spearmanrs = self.get_spearman_w_template()
+        f = pltg.plot_fits_separately(subject_data=spearmanrs[:,:3],subject_ages=self.ages,fit_colors=['r','g','b'],fit_names=['SA','VS','MR'],ylabel='spearman r with template')
+        
     def surface_plot(self, gradind, plotind = None):
         self.g(gradind,True).surface_plot(plotind)
     

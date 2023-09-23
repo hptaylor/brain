@@ -172,6 +172,7 @@ class FittedGradient:
             for j in range (self.ngrad):
                 granges[i,j] = np.percentile(self.array[i,:,j],95)-np.percentile(self.array[i,:,j],5)
         self.granges = granges
+        
     def get_vars(self):
         gvars = np.zeros((self.array.shape[0],self.array.shape[2]))
         for i in range (self.ntimepoints):
@@ -188,7 +189,7 @@ class FittedGradient:
             for j in range(self.ntimepoints):
                 inds = np.where(parc == i)[0]
                 if not zscore:
-                    disps[j,i] = mts.dispersion_centroid(self.garray[j,inds])
+                    disps[j,i] = mts.dispersion_centroid(self.array[j,inds])
                 else:
                     disps[j,i] = mts.dispersion_centroid(self.zarray[j,inds])
         return disps 
